@@ -17,7 +17,6 @@ import (
 	"docker_stack_manager/internal/scheduler"
 )
 
-// Version is injected by CI via -ldflags "-X main.Version=<8-char-commit>".
 var Version = "dev"
 
 func main() {
@@ -48,7 +47,7 @@ func main() {
 	sched.Start()
 	defer sched.Stop()
 
-	server := api.New(store, engine, sched, cfg.StaticDir)
+	server := api.New(store, engine, sched)
 	httpServer := &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           server.Handler(),

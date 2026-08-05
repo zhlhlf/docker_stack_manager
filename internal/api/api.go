@@ -1,8 +1,10 @@
 package api
 
 import (
+	"embed"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,23 +15,30 @@ import (
 	"docker_stack_manager/internal/scheduler"
 )
 
+//go:embed static/*
+var embeddedStatic embed.FS
+
 // Server serves REST APIs and static files.
 type Server struct {
 	store     *db.Store
 	engine    *detector.Engine
 	scheduler *scheduler.Scheduler
-	staticDir string
 	mux       *http.ServeMux
+	static    http.FileSystem
 }
 
-// New creates an API server.
-func New(store *db.Store, engine *detector.Engine, sched *scheduler.Scheduler, staticDir string) *Server {
+// New creates an API server with embedded frontend.
+func New(store *db.Store, engine *detector.Engine, sched *scheduler.Scheduler) *Server {
+	sub, err := fs.Sub(embeddedStatic, "static")
+	if err != nil {
+		panic("embed static failed: " + err.Error())
+	}
 	s := &Server{
 		store:     store,
 		engine:    engine,
 		scheduler: sched,
-		staticDir: staticDir,
 		mux:       http.NewServeMux(),
+		static:    http.FS(sub),
 	}
 	s.routes()
 	return s
@@ -49,22 +58,33 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/settings", s.handleSettings)
 	s.mux.HandleFunc("/api/stats", s.handleStats)
 	s.mux.HandleFunc("/api/logs", s.handleLogs)
-
-	fs := http.FileServer(http.Dir(s.staticDir))
-	s.mux.Handle("/", s.spaFallback(fs))
+	s.mux.Handle("/", s.spaFallback(http.FileServer(s.static)))
 }
 
-func (s *Server) spaFallback(fs http.Handler) http.HandlerFunc {
+func (s *Server) spaFallback(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
 			return
 		}
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, s.staticDir+"/index.html")
+		// Try static file first; if missing and not a file-looking path, serve index.html
+		if r.URL.Path != "/" {
+			f, err := s.static.Open(strings.TrimPrefix(r.URL.Path, "/"))
+			if err == nil {
+				_ = f.Close()
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		// SPA / dashboard entry
+		data, err := fs.ReadFile(embeddedStatic, "static/index.html")
+		if err != nil {
+			http.Error(w, "index.html missing in embed", http.StatusInternalServerError)
 			return
 		}
-		fs.ServeHTTP(w, r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
 	}
 }
 
