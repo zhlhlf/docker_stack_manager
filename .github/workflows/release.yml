@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: [ main, master ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -71,6 +72,7 @@ jobs:
           ls -lh dist
 
       - name: Create GitHub Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
