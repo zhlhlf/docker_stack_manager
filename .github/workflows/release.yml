@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional explicit tag (default: v + 8-char commit)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Resolve tag from 8-char commit
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${SHORT_SHA}"
+          fi
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=${TAG}, commit=${SHORT_SHA}"
+
+      - name: Ensure tag points to current commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${TAG}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${TAG}" --force
+
+      - name: Build Linux binary
+        env:
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
+            -o dist/docker_stack_manager_linux_amd64 .
+          (cd dist && sha256sum docker_stack_manager_linux_amd64 > checksums.txt)
+          ls -lh dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Release ${{ steps.meta.outputs.tag }}
+          body: |
+            ## Docker Stack Manager
+
+            - **Tag**: `${{ steps.meta.outputs.tag }}`
+            - **Commit**: `${{ steps.meta.outputs.short_sha }}` (`${{ github.sha }}`)
+            - **Platform**: Linux amd64 only
+
+            ### Artifact
+            - `docker_stack_manager_linux_amd64`
+            - `checksums.txt`
+          files: |
+            dist/docker_stack_manager_linux_amd64
+            dist/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

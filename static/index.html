@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker Stack Manager</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <i class="fa-brands fa-docker"></i>
+        <div>
+          <strong>Stack Manager</strong>
+          <small>Docker Swarm</small>
+        </div>
+      </div>
+      <nav class="menu">
+        <button class="menu-item active" data-page="dashboard"><i class="fa-solid fa-gauge"></i> 仪表板</button>
+        <button class="menu-item" data-page="violations"><i class="fa-solid fa-triangle-exclamation"></i> 违规列表</button>
+        <button class="menu-item" data-page="settings"><i class="fa-solid fa-gear"></i> 系统设置</button>
+      </nav>
+      <div class="sidebar-footer">v1.0 · Go + SQLite</div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h1 id="page-title">仪表板</h1>
+        <div class="top-actions">
+          <button id="btn-refresh" class="btn btn-ghost"><i class="fa-solid fa-rotate"></i> 刷新</button>
+          <button id="btn-clean" class="btn btn-danger"><i class="fa-solid fa-broom"></i> 一键清理</button>
+        </div>
+      </header>
+
+      <section id="page-dashboard" class="page active">
+        <div class="stats" id="stats-cards"></div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Stack 列表</h2>
+            <button id="btn-add-stack" class="btn btn-primary"><i class="fa-solid fa-plus"></i> 新增 Stack</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>描述</th>
+                  <th>端口白名单</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="stacks-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>服务状态</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>服务名</th>
+                  <th>归属 Stack</th>
+                  <th>发布端口</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="services-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-violations" class="page">
+        <div class="card">
+          <div class="card-header">
+            <h2>当前违规服务</h2>
+            <div class="filters">
+              <select id="filter-reason">
+                <option value="">全部原因</option>
+                <option value="no_stack">无 Stack</option>
+                <option value="port_not_allowed">端口不允许</option>
+              </select>
+              <input id="filter-stack" type="text" placeholder="按 Stack 筛选" />
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>服务名</th>
+                  <th>归属 Stack</th>
+                  <th>违规原因</th>
+                  <th>发布端口</th>
+                </tr>
+              </thead>
+              <tbody id="violations-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>违规日志</h2></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>服务名</th>
+                  <th>Stack</th>
+                  <th>原因</th>
+                  <th>已清理</th>
+                </tr>
+              </thead>
+              <tbody id="logs-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-settings" class="page">
+        <div class="card settings-card">
+          <div class="card-header"><h2>清理策略</h2></div>
+          <form id="settings-form" class="form">
+            <label class="switch-row">
+              <span>自动清理</span>
+              <input type="checkbox" id="auto_clean_enabled" />
+            </label>
+            <label>
+              <span>检测间隔（秒，最小 10）</span>
+              <input type="number" id="clean_interval" min="10" step="1" />
+            </label>
+            <label>
+              <span>上次清理时间</span>
+              <input type="text" id="last_clean_time" readonly />
+            </label>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> 保存设置</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Stack</h3>
+        <button id="modal-close" class="btn btn-ghost"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

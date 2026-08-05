@@ -1,0 +1,17 @@
+# binaries
+*.exe
+*.exe~
+docker_stack_manager
+docker_stack_manager_linux_amd64
+dist/
+
+# runtime data
+data.json
+*.db
+*.sqlite
+
+# ide / os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
