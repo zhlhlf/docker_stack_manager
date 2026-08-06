@@ -27,7 +27,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
 
       - name: Resolve tag from 8-char commit
         id: meta
@@ -58,20 +58,20 @@ jobs:
           git tag -f "${TAG}" "${GITHUB_SHA}"
           git push origin "refs/tags/${TAG}" --force
 
-      - name: Build Linux binary
+      - name: Build Linux binaries (amd64 + arm64)
         env:
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
-  go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
-  -o dist/docker_stack_manager_linux_arm64 .
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
             go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
             -o dist/docker_stack_manager_linux_amd64 .
-          (cd dist && sha256sum docker_stack_manager_linux_amd64 > checksums.txt)
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
+            -o dist/docker_stack_manager_linux_arm64 .
+          (cd dist && sha256sum docker_stack_manager_linux_amd64 docker_stack_manager_linux_arm64 > checksums.txt)
           ls -lh dist
 
       - name: Create GitHub Release
@@ -85,13 +85,15 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
 
             - **Tag**: `${{ steps.meta.outputs.tag }}`
             - **Commit**: `${{ steps.meta.outputs.short_sha }}` (`${{ github.sha }}`)
-            - **Platform**: Linux amd64 only
+            - **Platform**: Linux amd64 + arm64
 
-            ### Artifact
+            ### Artifacts
             - `docker_stack_manager_linux_amd64`
+            - `docker_stack_manager_linux_arm64`
             - `checksums.txt`
           files: |
             dist/docker_stack_manager_linux_amd64
+            dist/docker_stack_manager_linux_arm64
             dist/checksums.txt
           generate_release_notes: true
           draft: false

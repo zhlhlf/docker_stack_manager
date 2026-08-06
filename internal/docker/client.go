@@ -16,6 +16,7 @@ type ServiceView struct {
 	Name           string
 	StackLabel     string
 	PublishedPorts []PublishedPort
+	Networks       []string
 }
 
 // PublishedPort is a published service port.
@@ -126,6 +127,26 @@ func toServiceView(svc swarm.Service) ServiceView {
 			TargetPort:    p.TargetPort,
 			Protocol:      proto,
 		})
+	}
+
+	// Collect attached networks (name or id) for same-network stack unit inference.
+	seenNet := map[string]struct{}{}
+	addNet := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seenNet[id]; ok {
+			return
+		}
+		seenNet[id] = struct{}{}
+		view.Networks = append(view.Networks, id)
+	}
+	for _, n := range svc.Spec.TaskTemplate.Networks {
+		addNet(n.Target)
+	}
+	for _, n := range svc.Endpoint.VirtualIPs {
+		addNet(n.NetworkID)
 	}
 	return view
 }

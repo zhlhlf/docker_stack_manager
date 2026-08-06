@@ -3,9 +3,9 @@ package detector
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
-	"sort"
 	"sync"
 	"time"
 
@@ -103,7 +103,6 @@ func (e *Engine) detectLocked(ctx context.Context, logViolations bool) ([]models
 
 	sort.SliceStable(out, func(i, j int) bool {
 		si, sj := out[i].Stack, out[j].Stack
-		// empty stack last
 		if si == "" && sj != "" {
 			return false
 		}
@@ -122,7 +121,6 @@ func (e *Engine) detectLocked(ctx context.Context, logViolations bool) ([]models
 // Priority:
 //  1) Docker label com.docker.stack.namespace if it matches a configured stack
 //  2) Longest configured stack-name prefix of the service name
-//     e.g. service "czt-zhongtoubao-czt" + stack "czt-zhongtoubao" => match
 //  3) Label value even if not configured (will be treated as no_stack later)
 func resolveStack(svc dockerx.ServiceView, stackMap map[string]models.Stack) string {
 	if svc.StackLabel != "" {
@@ -133,7 +131,6 @@ func resolveStack(svc dockerx.ServiceView, stackMap map[string]models.Stack) str
 	if name := matchStackByPrefix(svc.Name, stackMap); name != "" {
 		return name
 	}
-	// Unconfigured label still returned for display; evaluateViolation marks no_stack.
 	if svc.StackLabel != "" {
 		return svc.StackLabel
 	}
@@ -141,7 +138,6 @@ func resolveStack(svc dockerx.ServiceView, stackMap map[string]models.Stack) str
 }
 
 // matchStackByPrefix picks the longest configured stack name that is a prefix of serviceName.
-// If serviceName is longer than the stack, the next character must be a separator (- _ .).
 func matchStackByPrefix(serviceName string, stackMap map[string]models.Stack) string {
 	best := ""
 	for name := range stackMap {
@@ -154,7 +150,6 @@ func matchStackByPrefix(serviceName string, stackMap map[string]models.Stack) st
 			}
 			continue
 		}
-		// require boundary so "web" does not claim "webapp"
 		next := serviceName[len(name)]
 		if next == '-' || next == '_' || next == '.' {
 			if len(name) > len(best) {
@@ -270,8 +265,6 @@ func (e *Engine) Stats(ctx context.Context) (*models.DashboardStats, error) {
 	}, nil
 }
 
-// serviceBelongsToStack reports whether a raw docker service belongs to stackName
-// by label or name prefix boundary match.
 func serviceBelongsToStack(svc dockerx.ServiceView, stackName string) bool {
 	if stackName == "" {
 		return false
@@ -289,7 +282,6 @@ func serviceBelongsToStack(svc dockerx.ServiceView, stackName string) bool {
 	return next == '-' || next == '_' || next == '.'
 }
 
-// suggestStackName picks a stack name for a violating service.
 func suggestStackName(svc dockerx.ServiceView, resolved string, stackMap map[string]models.Stack) string {
 	if resolved != "" {
 		return resolved
@@ -297,11 +289,20 @@ func suggestStackName(svc dockerx.ServiceView, resolved string, stackMap map[str
 	if svc.StackLabel != "" {
 		return svc.StackLabel
 	}
-	// No reliable stack name for pure orphans without label.
 	return ""
 }
 
+type violationRow struct {
+	svc    dockerx.ServiceView
+	reason string
+	stack  string
+}
+
 // ListViolationStacks groups current violating services by stack name.
+// Rules for stack unit name:
+//  1) resolved/configured stack or docker stack label
+//  2) if multiple violating services share the same network and a common name prefix,
+//     use that common prefix as one stack unit (longest boundary-aware prefix)
 func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationStack, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -320,13 +321,7 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 		return nil, err
 	}
 
-	type acc struct {
-		services map[string]struct{}
-		ports    map[string]struct{}
-		reasons  map[string]struct{}
-	}
-	groups := map[string]*acc{}
-
+	var viols []violationRow
 	for _, svc := range services {
 		info := models.ServiceInfo{
 			ID:             svc.ID,
@@ -339,6 +334,29 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 			continue
 		}
 		name := suggestStackName(svc, info.Stack, stackMap)
+		viols = append(viols, violationRow{svc: svc, reason: reason, stack: name})
+	}
+
+	orphans := make([]violationRow, 0)
+	named := make([]violationRow, 0)
+	for _, v := range viols {
+		if v.stack == "" {
+			orphans = append(orphans, v)
+		} else {
+			named = append(named, v)
+		}
+	}
+	inferred := inferStackUnitsByNetworkPrefix(orphans)
+	viols = append(named, inferred...)
+
+	type acc struct {
+		services map[string]struct{}
+		ports    map[string]struct{}
+		reasons  map[string]struct{}
+	}
+	groups := map[string]*acc{}
+	for _, v := range viols {
+		name := v.stack
 		if name == "" {
 			continue
 		}
@@ -351,9 +369,9 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 			}
 			groups[name] = g
 		}
-		g.services[svc.Name] = struct{}{}
-		g.reasons[reason] = struct{}{}
-		for _, p := range publishedPortStrings(svc.PublishedPorts) {
+		g.services[v.svc.Name] = struct{}{}
+		g.reasons[v.reason] = struct{}{}
+		for _, p := range publishedPortStrings(v.svc.PublishedPorts) {
 			g.ports[p] = struct{}{}
 		}
 	}
@@ -387,6 +405,124 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
+}
+
+func inferStackUnitsByNetworkPrefix(orphans []violationRow) []violationRow {
+	if len(orphans) == 0 {
+		return nil
+	}
+	byNet := map[string][]int{}
+	for i, v := range orphans {
+		nets := v.svc.Networks
+		if len(nets) == 0 {
+			nets = []string{"_none_"}
+		}
+		for _, n := range nets {
+			byNet[n] = append(byNet[n], i)
+		}
+	}
+
+	assigned := make([]string, len(orphans))
+	for _, idxs := range byNet {
+		if len(idxs) < 2 {
+			if len(idxs) == 1 {
+				name := weakPrefixUnit(orphans[idxs[0]].svc.Name)
+				if name != "" && assigned[idxs[0]] == "" {
+					assigned[idxs[0]] = name
+				}
+			}
+			continue
+		}
+		names := make([]string, 0, len(idxs))
+		for _, i := range idxs {
+			names = append(names, orphans[i].svc.Name)
+		}
+		prefix := longestCommonBoundaryPrefix(names)
+		if prefix == "" {
+			continue
+		}
+		for _, i := range idxs {
+			if assigned[i] == "" || len(prefix) > len(assigned[i]) {
+				assigned[i] = prefix
+			}
+		}
+	}
+
+	out := make([]violationRow, 0, len(orphans))
+	for i, v := range orphans {
+		v.stack = assigned[i]
+		out = append(out, v)
+	}
+	return out
+}
+
+func weakPrefixUnit(name string) string {
+	for _, sep := range []string{"-", "_"} {
+		parts := strings.Split(name, sep)
+		if len(parts) >= 2 && parts[0] != "" {
+			return parts[0]
+		}
+	}
+	return ""
+}
+
+func longestCommonBoundaryPrefix(names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	prefix := names[0]
+	for _, n := range names[1:] {
+		prefix = commonPrefix(prefix, n)
+		if prefix == "" {
+			return ""
+		}
+	}
+	cut := -1
+	for i := 0; i < len(prefix); i++ {
+		if prefix[i] == '-' || prefix[i] == '_' || prefix[i] == '.' {
+			cut = i
+		}
+	}
+	if cut <= 0 {
+		for _, n := range names {
+			if n != prefix {
+				return ""
+			}
+		}
+		return prefix
+	}
+	if len(prefix) < len(names[0]) {
+		unit := prefix[:cut]
+		if unit == "" {
+			return ""
+		}
+		for _, n := range names {
+			if !strings.HasPrefix(n, unit) {
+				return ""
+			}
+			if len(n) == len(unit) {
+				continue
+			}
+			next := n[len(unit)]
+			if next != '-' && next != '_' && next != '.' {
+				return ""
+			}
+		}
+		return unit
+	}
+	return strings.TrimRight(prefix, "-_.")
+}
+
+func commonPrefix(a, b string) string {
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	i := 0
+	for i < n && a[i] == b[i] {
+		i++
+	}
+	return a[:i]
 }
 
 // WhitelistStack creates/ensures stack and adds published ports from matching running services.
