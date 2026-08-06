@@ -8,9 +8,9 @@ const state = {
 };
 
 const pageMeta = {
-  dashboard: { title: "娴狀亣銆冮弶?, subtitle: "閻╂垶甯?Stack 閺堝秴濮熸稉搴ｎ伂閸欙絽鎮庣憴鍕Ц閹? },
-  violations: { title: "鏉╂繆顫夐崚妤勩€?, subtitle: "閺屻儳婀呴獮鑸电閻炲棔绗夐崥鍫ｎ潐 Swarm 閺堝秴濮? },
-  settings: { title: "缁崵绮虹拋鍓х枂", subtitle: "闁板秶鐤嗛懛顏勫З濞撳懐鎮婄粵鏍殣娑撳孩顥呭ù瀣？闂? },
+  dashboard: { title: "仪表板", subtitle: "监控 Stack 服务与端口合规状态" },
+  violations: { title: "违规列表", subtitle: "查看并清理不合规 Swarm 服务" },
+  settings: { title: "系统设置", subtitle: "配置自动清理策略与检测间隔" },
 };
 
 async function api(path, options = {}) {
@@ -35,8 +35,8 @@ function toast(message, type = "ok") {
 }
 
 function reasonText(reason) {
-  if (reason === "no_stack") return "閺?Stack 瑜版帒鐫?;
-  if (reason === "port_not_allowed") return "缁旑垰褰涙稉宥呮躬閻ц棄鎮曢崡?;
+  if (reason === "no_stack") return "无 Stack 归属";
+  if (reason === "port_not_allowed") return "端口不在白名单";
   return reason || "-";
 }
 
@@ -46,17 +46,6 @@ function escapeHtml(str) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
-}
-
-function sortByStack(list) {
-  return [...list].sort((a, b) => {
-    const sa = a.stack || "";
-    const sb = b.stack || "";
-    if (!sa && sb) return 1;
-    if (sa && !sb) return -1;
-    if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
-    return (a.name || "").localeCompare(b.name || "", "zh-CN");
-  });
 }
 
 function emptyRow(cols, text) {
@@ -87,12 +76,12 @@ function closeModal() {
 
 function renderStats(stats = {}) {
   const cards = [
-    { label: "Stack 閺佷即鍣?, value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
-    { label: "閺堝秴濮熼弫浼村櫤", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
-    { label: "鏉╂繆顫夐張宥呭", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
+    { label: "Stack 数量", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
+    { label: "服务数量", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
+    { label: "违规服务", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
     {
-      label: "閼奉亜濮╁〒鍛倞",
-      value: stats.auto_clean_enabled ? "瀵偓閸? : "閸忔娊妫?,
+      label: "自动清理",
+      value: stats.auto_clean_enabled ? "开启" : "关闭",
       color: "#7c3aed",
       icon: "fa-robot",
       tone: "purple",
@@ -111,48 +100,69 @@ function renderStats(stats = {}) {
     .join("");
 }
 
+function serviceRow(s, ok) {
+  const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
+  const status = ok
+    ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 合法</span>`
+    : `<span class="badge badge-bad"><i class="fa-solid fa-xmark"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span>`;
+  return `<tr>
+    <td class="name-cell">${escapeHtml(s.name)}</td>
+    <td>${escapeHtml(s.stack || "未归属")}</td>
+    <td>${ports}</td>
+    <td>${status}</td>
+  </tr>`;
+}
+
+function renderServices() {
+  const badBody = document.getElementById("services-bad-body");
+  const okBody = document.getElementById("services-ok-body");
+  if (!badBody || !okBody) return;
+
+  const bad = state.services.filter((s) => s.violation?.is_violation);
+  const ok = state.services.filter((s) => !s.violation?.is_violation);
+
+  document.getElementById("bad-count").textContent = String(bad.length);
+  document.getElementById("ok-count").textContent = String(ok.length);
+
+  badBody.innerHTML = bad.length
+    ? bad.map((s) => serviceRow(s, false)).join("")
+    : emptyRow(4, state.services.length ? "当前无违规服务" : "暂无服务或 Docker 不可用");
+
+  okBody.innerHTML = ok.length
+    ? ok.map((s) => serviceRow(s, true)).join("")
+    : emptyRow(4, "暂无合法服务");
+}
+
+function toggleOkServices(forceOpen) {
+  const btn = document.getElementById("toggle-ok-services");
+  const panel = document.getElementById("ok-services-panel");
+  const text = document.getElementById("ok-toggle-text");
+  if (!btn || !panel) return;
+  const open = typeof forceOpen === "boolean" ? forceOpen : btn.getAttribute("aria-expanded") !== "true";
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  panel.classList.toggle("hidden", !open);
+  if (text) text.textContent = open ? "点击收起" : "点击展开";
+}
+
 function renderStacks() {
   const body = document.getElementById("stacks-body");
   if (!state.stacks.length) {
-    body.innerHTML = emptyRow(4, "閺嗗倹妫?Stack閿涘瞼鍋ｉ崙璇插礁娑撳﹨顫楅弬鏉款杻");
+    body.innerHTML = emptyRow(4, "暂无 Stack，请先新增");
     return;
   }
   body.innerHTML = state.stacks
     .map((s) => {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
-        .join(" ") || `<span class="chip-empty">閺冪姷顏崣锝忕礄娑撳秴鍘戠拋绋跨磻閺€鎾呯礆</span>`;
+        .join(" ") || `<span class="muted">无端口（不允许开放）</span>`;
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.description || "-")}</td>
         <td>${ports}</td>
         <td class="actions">
-          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 缂傛牞绶?/button>
-          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 閸掔娀娅?/button>
+          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
+          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 删除</button>
         </td>
-      </tr>`;
-    })
-    .join("");
-}
-
-function renderServices() {
-  const body = document.getElementById("services-body");
-  if (!state.services.length) {
-    body.innerHTML = emptyRow(4, "閺嗗倹妫ら張宥呭閹?Docker 娑撳秴褰查悽?);
-    return;
-  }
-  body.innerHTML = state.services
-    .map((s) => {
-      const ok = !s.violation?.is_violation;
-      const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
-      const status = ok
-        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 閸氬牊纭?/span>`
-        : `<span class="badge badge-bad"><i class="fa-solid fa-xmark"></i> ${escapeHtml(reasonText(s.violation.reason))}</span>`;
-      return `<tr>
-        <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "閺堫亜缍婄仦?)}</td>
-        <td>${ports}</td>
-        <td>${status}</td>
       </tr>`;
     })
     .join("");
@@ -168,7 +178,7 @@ function renderViolations() {
   });
   const body = document.getElementById("violations-body");
   if (!list.length) {
-    body.innerHTML = emptyRow(4, "瑜版挸澧犻弮鐘虹箽鐟欏嫭婀囬崝?);
+    body.innerHTML = emptyRow(4, "当前无违规服务");
     return;
   }
   body.innerHTML = list
@@ -176,7 +186,7 @@ function renderViolations() {
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "閺堫亜缍婄仦?)}</td>
+        <td>${escapeHtml(s.stack || "未归属")}</td>
         <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
         <td>${ports}</td>
       </tr>`;
@@ -187,7 +197,7 @@ function renderViolations() {
 function renderLogs() {
   const body = document.getElementById("logs-body");
   if (!state.logs.length) {
-    body.innerHTML = emptyRow(5, "閺嗗倹妫ら弮銉ョ箶");
+    body.innerHTML = emptyRow(5, "暂无日志");
     return;
   }
   body.innerHTML = state.logs
@@ -196,7 +206,7 @@ function renderLogs() {
       <td class="name-cell">${escapeHtml(l.service_name)}</td>
       <td>${escapeHtml(l.stack_name || "-")}</td>
       <td>${escapeHtml(reasonText(l.reason))}</td>
-      <td>${l.cleaned ? `<span class="badge badge-ok">瀹稿弶绔婚悶?/span>` : `<span class="badge badge-muted">閺堫亝绔婚悶?/span>`}</td>
+      <td>${l.cleaned ? `<span class="badge badge-ok">已清理</span>` : `<span class="badge badge-muted">未清理</span>`}</td>
     </tr>`)
     .join("");
 }
@@ -210,30 +220,30 @@ function renderSettings() {
 function openStackModal(stack) {
   state.editingStackId = stack?.id || null;
   const isEdit = !!stack;
-  openModal(isEdit ? `缂傛牞绶?Stack 璺?${stack.name}` : "閺傛澘顤?Stack", `
+  openModal(isEdit ? `编辑 Stack · ${stack.name}` : "新增 Stack", `
     <form class="stack-form" id="stack-form">
       <label>
-        <div>閸氬秶袨 ${isEdit ? "(娑撳秴褰叉穱顔芥暭)" : ""}</div>
-        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="娓氬顩?czt-zhongtoubao" />
+        <div>名称 ${isEdit ? "(不可修改)" : ""}</div>
+        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="例如 czt-zhongtoubao" />
       </label>
       <label>
-        <div>閹诲繗鍫?/div>
-        <textarea name="description" rows="2" placeholder="閸欘垶鈧寮挎潻?>${escapeHtml(stack?.description || "")}</textarea>
+        <div>描述</div>
+        <textarea name="description" rows="2" placeholder="可选描述">${escapeHtml(stack?.description || "")}</textarea>
       </label>
       ${isEdit ? `
         <div>
-          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">缁旑垰褰涢惂钘夋倳閸?/div>
+          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">端口白名单</div>
           <div class="port-row">
-            <input id="new-port" placeholder="8080 閹?8080-8090" />
+            <input id="new-port" placeholder="8080 或 8080-8090" />
             <select id="new-proto"><option value="tcp">tcp</option><option value="udp">udp</option></select>
-            <button type="button" class="btn btn-primary" id="btn-add-port">濞ｈ濮?/button>
+            <button type="button" class="btn btn-primary" id="btn-add-port">添加</button>
           </div>
           <div class="port-list" id="port-list"></div>
         </div>
-      ` : `<div class="muted">閸掓稑缂撻崥搴″讲閸︺劎绱潏鎴滆厬闁板秶鐤嗙粩顖氬經閻ц棄鎮曢崡鏇樷偓鍌溾敄閻ц棄鎮曢崡鏇°€冪粈杞扮瑝閸忎浇顔忔禒璁崇秿閸欐垵绔风粩顖氬經閵?/div>`}
+      ` : `<div class="muted">创建后可在编辑中配置端口白名单。空白名单表示不允许任何发布端口。</div>`}
       <div class="actions">
-        <button type="submit" class="btn btn-primary">${isEdit ? "娣囨繂鐡ㄩ幓蹇氬牚" : "閸掓稑缂?}</button>
-        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">閸欐牗绉?/button>
+        <button type="submit" class="btn btn-primary">${isEdit ? "保存描述" : "创建"}</button>
+        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">取消</button>
       </div>
     </form>
   `);
@@ -249,7 +259,7 @@ function openStackModal(stack) {
           method: "PUT",
           body: JSON.stringify({ description: fd.get("description") || "" }),
         });
-        toast("Stack 瀹稿弶娲块弬?);
+        toast("Stack 已更新");
       } else {
         await api("/api/stacks", {
           method: "POST",
@@ -258,7 +268,7 @@ function openStackModal(stack) {
             description: fd.get("description") || "",
           }),
         });
-        toast("Stack 瀹告彃鍨卞?);
+        toast("Stack 已创建");
         closeModal();
       }
       await refreshAll();
@@ -276,13 +286,13 @@ function openStackModal(stack) {
     addPortBtn.onclick = async () => {
       const port = document.getElementById("new-port").value.trim();
       const protocol = document.getElementById("new-proto").value;
-      if (!port) return toast("鐠囩柉绶崗銉ь伂閸?, "err");
+      if (!port) return toast("请输入端口", "err");
       try {
         await api(`/api/stacks/${stack.id}/ports`, {
           method: "POST",
           body: JSON.stringify({ port, protocol }),
         });
-        toast("缁旑垰褰涘鍙夊潑閸?);
+        toast("端口已添加");
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -298,14 +308,14 @@ function renderPortList(stack) {
   if (!box) return;
   const ports = stack.ports || [];
   if (!ports.length) {
-    box.innerHTML = `<div class="muted">閺嗗倹妫ょ粩顖氬經</div>`;
+    box.innerHTML = `<div class="muted">暂无端口</div>`;
     return;
   }
   box.innerHTML = ports
     .map(
       (p) => `<div class="port-item">
         <span class="chip">${escapeHtml(p.port)} / ${escapeHtml(p.protocol || "tcp")}</span>
-        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">閸掔娀娅?/button>
+        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">删除</button>
       </div>`
     )
     .join("");
@@ -313,7 +323,7 @@ function renderPortList(stack) {
     btn.onclick = async () => {
       try {
         await api(`/api/stacks/${stack.id}/ports/${btn.dataset.delPort}`, { method: "DELETE" });
-        toast("缁旑垰褰涘鎻掑灩闂?);
+        toast("端口已删除");
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -335,9 +345,9 @@ async function refreshAll() {
   ]);
 
   state.stacks = stacksRes.data || [];
-  state.services = sortByStack(servicesRes.data || []);
-  state.violations = sortByStack(violationsRes.data || []);
-  state.settings = settingsRes.data || {};
+  state.services = servicesRes.data || [];
+  state.violations = violationsRes.data || [];
+  state.settings = settingsRes.data || [];
   state.logs = logsRes.data || [];
 
   renderStats(statsRes.data || {});
@@ -359,28 +369,22 @@ function bindEvents() {
   document.getElementById("btn-refresh").onclick = async () => {
     try {
       await refreshAll();
-      toast("瀹告彃鍩涢弬?);
+      toast("已刷新");
     } catch (err) {
       toast(err.message, "err");
     }
   };
   document.getElementById("btn-clean").onclick = async () => {
-    if (!confirm("绾喛顓诲〒鍛倞閹碘偓閺堝缍嬮崜宥堢箽鐟欏嫭婀囬崝鈽呯吹濮濄倖鎼锋担婊€绱伴崚鐘绘珟 Docker Service閵?)) return;
+    if (!confirm("确认清理所有当前违规服务？此操作会删除 Docker Service。")) return;
     try {
       const res = await api("/api/clean", { method: "POST" });
-      toast(`濞撳懐鎮婄€瑰本鍨氶敍灞藉灩闂?${res.data?.removed ?? 0} 娑擃亝婀囬崝顡?;
+      toast(`清理完成，删除 ${res.data?.removed ?? 0} 个服务`);
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");
     }
   };
   document.getElementById("btn-add-stack").onclick = () => openStackModal(null);
-  const okToggle = document.getElementById("toggle-ok-services");
-  if (okToggle) {
-    okToggle.onclick = () => toggleOkServices();
-    // default collapsed
-    toggleOkServices(false);
-  }
   document.getElementById("modal-close").onclick = closeModal;
   document.getElementById("modal").addEventListener("click", (e) => {
     if (e.target.id === "modal") closeModal();
@@ -393,10 +397,10 @@ function bindEvents() {
       if (stack) openStackModal(stack);
     }
     if (delBtn) {
-      if (!confirm("绾喛顓婚崚鐘绘珟鐠?Stack閿?)) return;
+      if (!confirm("确认删除该 Stack？")) return;
       try {
         await api(`/api/stacks/${delBtn.dataset.delStack}`, { method: "DELETE" });
-        toast("瀹告彃鍨归梽?);
+        toast("已删除");
         await refreshAll();
       } catch (err) {
         toast(err.message, "err");
@@ -413,7 +417,7 @@ function bindEvents() {
     };
     try {
       await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });
-      toast("鐠佸墽鐤嗗韫箽鐎?);
+      toast("设置已保存");
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");
