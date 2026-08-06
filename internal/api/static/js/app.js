@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   stacks: [],
   services: [],
   violations: [],
@@ -7,10 +7,10 @@
   editingStackId: null,
 };
 
-const pageTitles = {
-  dashboard: "仪表板",
-  violations: "违规列表",
-  settings: "系统设置",
+const pageMeta = {
+  dashboard: { title: "仪表板", subtitle: "监控 Stack 服务与端口合规状态" },
+  violations: { title: "违规列表", subtitle: "查看并清理不合规 Swarm 服务" },
+  settings: { title: "系统设置", subtitle: "配置自动清理策略与检测间隔" },
 };
 
 async function api(path, options = {}) {
@@ -48,13 +48,19 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;");
 }
 
+function emptyRow(cols, text) {
+  return `<tr class="empty-row"><td colspan="${cols}">${escapeHtml(text)}</td></tr>`;
+}
+
 function showPage(page) {
   document.querySelectorAll(".menu-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.page === page);
   });
   document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
   document.getElementById(`page-${page}`).classList.add("active");
-  document.getElementById("page-title").textContent = pageTitles[page] || page;
+  const meta = pageMeta[page] || { title: page, subtitle: "" };
+  document.getElementById("page-title").textContent = meta.title;
+  document.getElementById("page-subtitle").textContent = meta.subtitle;
 }
 
 function openModal(title, html) {
@@ -70,14 +76,26 @@ function closeModal() {
 
 function renderStats(stats = {}) {
   const cards = [
-    { label: "Stack 数量", value: stats.stack_count ?? 0, color: "#2563eb" },
-    { label: "服务数量", value: stats.service_count ?? 0, color: "#0f766e" },
-    { label: "违规服务", value: stats.violation_count ?? 0, color: "#b91c1c" },
-    { label: "自动清理", value: stats.auto_clean_enabled ? "开启" : "关闭", color: "#7c3aed" },
+    { label: "Stack 数量", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
+    { label: "服务数量", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
+    { label: "违规服务", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
+    {
+      label: "自动清理",
+      value: stats.auto_clean_enabled ? "开启" : "关闭",
+      color: "#7c3aed",
+      icon: "fa-robot",
+      tone: "purple",
+    },
   ];
   document.getElementById("stats-cards").innerHTML = cards
     .map(
-      (c) => `<div class="stat-card"><div class="label">${c.label}</div><div class="value" style="color:${c.color}">${c.value}</div></div>`
+      (c) => `<div class="stat-card">
+        <div class="stat-top">
+          <div class="label">${c.label}</div>
+          <div class="stat-icon ${c.tone}"><i class="fa-solid ${c.icon}"></i></div>
+        </div>
+        <div class="value" style="color:${c.color}">${c.value}</div>
+      </div>`
     )
     .join("");
 }
@@ -85,20 +103,20 @@ function renderStats(stats = {}) {
 function renderStacks() {
   const body = document.getElementById("stacks-body");
   if (!state.stacks.length) {
-    body.innerHTML = `<tr><td colspan="4" class="muted">暂无 Stack，请先新增</td></tr>`;
+    body.innerHTML = emptyRow(4, "暂无 Stack，点击右上角新增");
     return;
   }
   body.innerHTML = state.stacks
     .map((s) => {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
-        .join(" ") || `<span class="muted">无端口（不允许开放）</span>`;
+        .join(" ") || `<span class="chip-empty">无端口（不允许开放）</span>`;
       return `<tr>
-        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.description || "-")}</td>
         <td>${ports}</td>
         <td class="actions">
-          <button class="btn btn-ghost btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
+          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
           <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 删除</button>
         </td>
       </tr>`;
@@ -109,18 +127,21 @@ function renderStacks() {
 function renderServices() {
   const body = document.getElementById("services-body");
   if (!state.services.length) {
-    body.innerHTML = `<tr><td colspan="4" class="muted">暂无服务或 Docker 不可用</td></tr>`;
+    body.innerHTML = emptyRow(4, "暂无服务或 Docker 不可用");
     return;
   }
   body.innerHTML = state.services
     .map((s) => {
       const ok = !s.violation?.is_violation;
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
+      const status = ok
+        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 合法</span>`
+        : `<span class="badge badge-bad"><i class="fa-solid fa-xmark"></i> ${escapeHtml(reasonText(s.violation.reason))}</span>`;
       return `<tr>
-        <td>${escapeHtml(s.name)}</td>
+        <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.stack || "未归属")}</td>
         <td>${ports}</td>
-        <td>${ok ? `<span class="badge badge-ok">合法</span>` : `<span class="badge badge-bad">${escapeHtml(reasonText(s.violation.reason))}</span>`}</td>
+        <td>${status}</td>
       </tr>`;
     })
     .join("");
@@ -136,16 +157,16 @@ function renderViolations() {
   });
   const body = document.getElementById("violations-body");
   if (!list.length) {
-    body.innerHTML = `<tr><td colspan="4" class="muted">当前无违规服务</td></tr>`;
+    body.innerHTML = emptyRow(4, "当前无违规服务");
     return;
   }
   body.innerHTML = list
     .map((s) => {
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       return `<tr>
-        <td>${escapeHtml(s.name)}</td>
+        <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.stack || "未归属")}</td>
-        <td><span class="badge badge-bad">${escapeHtml(reasonText(s.violation?.reason))}</span></td>
+        <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
         <td>${ports}</td>
       </tr>`;
     })
@@ -155,16 +176,16 @@ function renderViolations() {
 function renderLogs() {
   const body = document.getElementById("logs-body");
   if (!state.logs.length) {
-    body.innerHTML = `<tr><td colspan="5" class="muted">暂无日志</td></tr>`;
+    body.innerHTML = emptyRow(5, "暂无日志");
     return;
   }
   body.innerHTML = state.logs
     .map((l) => `<tr>
       <td>${escapeHtml(l.detected_at || "-")}</td>
-      <td>${escapeHtml(l.service_name)}</td>
+      <td class="name-cell">${escapeHtml(l.service_name)}</td>
       <td>${escapeHtml(l.stack_name || "-")}</td>
       <td>${escapeHtml(reasonText(l.reason))}</td>
-      <td>${l.cleaned ? `<span class="badge badge-ok">是</span>` : `<span class="badge badge-muted">否</span>`}</td>
+      <td>${l.cleaned ? `<span class="badge badge-ok">已清理</span>` : `<span class="badge badge-muted">未清理</span>`}</td>
     </tr>`)
     .join("");
 }
@@ -181,16 +202,16 @@ function openStackModal(stack) {
   openModal(isEdit ? `编辑 Stack · ${stack.name}` : "新增 Stack", `
     <form class="stack-form" id="stack-form">
       <label>
-        <div class="muted">名称 ${isEdit ? "(不可修改)" : ""}</div>
-        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="例如 webapp" />
+        <div>名称 ${isEdit ? "(不可修改)" : ""}</div>
+        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="例如 czt-zhongtoubao" />
       </label>
       <label>
-        <div class="muted">描述</div>
+        <div>描述</div>
         <textarea name="description" rows="2" placeholder="可选描述">${escapeHtml(stack?.description || "")}</textarea>
       </label>
       ${isEdit ? `
         <div>
-          <div class="muted" style="margin-bottom:6px">端口白名单</div>
+          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">端口白名单</div>
           <div class="port-row">
             <input id="new-port" placeholder="8080 或 8080-8090" />
             <select id="new-proto"><option value="tcp">tcp</option><option value="udp">udp</option></select>
@@ -272,7 +293,7 @@ function renderPortList(stack) {
   box.innerHTML = ports
     .map(
       (p) => `<div class="port-item">
-        <span>${escapeHtml(p.port)} / ${escapeHtml(p.protocol || "tcp")}</span>
+        <span class="chip">${escapeHtml(p.port)} / ${escapeHtml(p.protocol || "tcp")}</span>
         <button class="btn btn-danger btn-sm" data-del-port="${p.id}">删除</button>
       </div>`
     )
@@ -316,7 +337,6 @@ async function refreshAll() {
   renderSettings();
 
   if (servicesRes.message && servicesRes.message !== "ok") {
-    // soft warning only
     console.warn(servicesRes.message);
   }
 }
