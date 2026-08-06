@@ -390,3 +390,19 @@ func (s *Store) CountStacks() (int, error) {
 	defer s.mu.RUnlock()
 	return len(s.data.Stacks), nil
 }
+
+// HasPort reports whether stack already has the port/protocol.
+func (s *Store) HasPort(stackID int64, port, protocol string) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	protocol = strings.ToLower(protocol)
+	if protocol == "" {
+		protocol = "tcp"
+	}
+	for _, p := range s.data.Ports {
+		if p.StackID == stackID && p.Port == port && strings.ToLower(p.Protocol) == protocol {
+			return true, nil
+		}
+	}
+	return false, nil
+}
