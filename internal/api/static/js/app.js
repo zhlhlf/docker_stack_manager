@@ -223,6 +223,33 @@ function renderViolationStacks() {
     .join("");
 }
 
+function renderViolations() {
+  const reason = document.getElementById("filter-reason")?.value || "";
+  const stack = (document.getElementById("filter-stack")?.value || "").trim().toLowerCase();
+  const list = (state.violations || []).filter((v) => {
+    if (reason && v.violation?.reason !== reason) return false;
+    if (stack && !(v.stack || "").toLowerCase().includes(stack)) return false;
+    return true;
+  });
+  const body = document.getElementById("violations-body");
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = emptyRow(4, "当前无违规服务");
+    return;
+  }
+  body.innerHTML = list
+    .map((s) => {
+      const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
+      return `<tr>
+        <td class="name-cell">${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.stack || "未归属")}</td>
+        <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
+        <td>${ports}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
 function renderLogs() {
   const body = document.getElementById("logs-body");
   if (!state.logs.length) {
@@ -385,6 +412,7 @@ async function refreshAll() {
   renderStacks();
   renderViolationStacks();
   renderServices();
+  renderViolations();
   renderLogs();
   renderSettings();
 
