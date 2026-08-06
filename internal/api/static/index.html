@@ -78,6 +78,31 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">
+              <i class="fa-solid fa-list-check"></i>
+              <div>
+                <h2>违规 Stack</h2>
+                <p>可一键加入白名单（创建 Stack 并收录运行中端口）</p>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Stack</th>
+                  <th>服务数</th>
+                  <th>运行端口</th>
+                  <th>原因</th>
+                  <th style="width:160px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="violation-stacks-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
               <i class="fa-solid fa-server"></i>
               <div>
                 <h2>服务状态</h2>

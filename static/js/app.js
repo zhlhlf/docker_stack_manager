@@ -2,6 +2,7 @@ const state = {
   stacks: [],
   services: [],
   violations: [],
+  violationStacks: [],
   logs: [],
   settings: {},
   editingStackId: null,
@@ -153,6 +154,36 @@ function toggleOkServices(forceOpen) {
   btn.setAttribute("aria-expanded", open ? "true" : "false");
   panel.classList.toggle("hidden", !open);
   if (text) text.textContent = open ? "点击收起" : "点击展开";
+}
+
+function renderViolationStacks() {
+  const body = document.getElementById("violation-stacks-body");
+  if (!body) return;
+  const list = state.violationStacks || [];
+  if (!list.length) {
+    body.innerHTML = emptyRow(5, "暂无违规 Stack（或无法推断 Stack 名）");
+    return;
+  }
+  body.innerHTML = list
+    .map((s) => {
+      const ports = (s.ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
+      const reasons = (s.reasons || []).map((r) => `<span class="badge badge-bad">${escapeHtml(reasonText(r))}</span>`).join(" ") || "-";
+      const conf = s.configured
+        ? `<span class="badge badge-muted">已配置</span>`
+        : `<span class="badge badge-bad">未配置</span>`;
+      return `<tr>
+        <td class="name-cell">${escapeHtml(s.name)} ${conf}</td>
+        <td>${s.service_count ?? (s.services || []).length}</td>
+        <td>${ports}</td>
+        <td>${reasons}</td>
+        <td class="actions">
+          <button class="btn btn-primary btn-sm" data-whitelist-stack="${escapeHtml(s.name)}">
+            <i class="fa-solid fa-plus"></i> 加入白名单
+          </button>
+        </td>
+      </tr>`;
+    })
+    .join("");
 }
 
 function renderStacks() {
@@ -346,10 +377,11 @@ function renderPortList(stack) {
 }
 
 async function refreshAll() {
-  const [stacksRes, servicesRes, violationsRes, settingsRes, statsRes, logsRes] = await Promise.all([
+  const [stacksRes, servicesRes, violationsRes, violationStacksRes, settingsRes, statsRes, logsRes] = await Promise.all([
     api("/api/stacks"),
     api("/api/services").catch((e) => ({ data: [], message: e.message })),
     api("/api/violations").catch((e) => ({ data: [], message: e.message })),
+    api("/api/violation-stacks").catch((e) => ({ data: [], message: e.message })),
     api("/api/settings"),
     api("/api/stats").catch((e) => ({ data: {}, message: e.message })),
     api("/api/logs"),
@@ -358,11 +390,13 @@ async function refreshAll() {
   state.stacks = stacksRes.data || [];
   state.services = sortByStack(servicesRes.data || []);
   state.violations = sortByStack(violationsRes.data || []);
+  state.violationStacks = violationStacksRes.data || [];
   state.settings = settingsRes.data || {};
   state.logs = logsRes.data || [];
 
   renderStats(statsRes.data || {});
   renderStacks();
+  renderViolationStacks();
   renderServices();
   renderViolations();
   renderLogs();
