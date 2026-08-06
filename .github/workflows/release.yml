@@ -59,6 +59,7 @@ jobs:
           git push origin "refs/tags/${TAG}" --force
 
       - name: Build Linux binaries (amd64 + arm64)
+        id: build
         env:
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         shell: bash
@@ -71,7 +72,11 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
             go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
             -o dist/docker_stack_manager_linux_arm64 .
-          (cd dist && sha256sum docker_stack_manager_linux_amd64 docker_stack_manager_linux_arm64 > checksums.txt)
+
+          AMD64_SHA="$(sha256sum dist/docker_stack_manager_linux_amd64 | awk '{print $1}')"
+          ARM64_SHA="$(sha256sum dist/docker_stack_manager_linux_arm64 | awk '{print $1}')"
+          echo "amd64_sha=${AMD64_SHA}" >> "$GITHUB_OUTPUT"
+          echo "arm64_sha=${ARM64_SHA}" >> "$GITHUB_OUTPUT"
           ls -lh dist
 
       - name: Create GitHub Release
@@ -88,13 +93,11 @@ jobs:
             - **Platform**: Linux amd64 + arm64
 
             ### Artifacts
-            - `docker_stack_manager_linux_amd64`
-            - `docker_stack_manager_linux_arm64`
-            - `checksums.txt`
+            - `docker_stack_manager_linux_amd64` — SHA256: `${{ steps.build.outputs.amd64_sha }}`
+            - `docker_stack_manager_linux_arm64` — SHA256: `${{ steps.build.outputs.arm64_sha }}`
           files: |
             dist/docker_stack_manager_linux_amd64
             dist/docker_stack_manager_linux_arm64
-            dist/checksums.txt
           generate_release_notes: true
           draft: false
           prerelease: false
