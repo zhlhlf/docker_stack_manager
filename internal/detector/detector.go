@@ -269,3 +269,197 @@ func (e *Engine) Stats(ctx context.Context) (*models.DashboardStats, error) {
 		AutoCleanEnabled: auto == "true",
 	}, nil
 }
+
+// serviceBelongsToStack reports whether a raw docker service belongs to stackName
+// by label or name prefix boundary match.
+func serviceBelongsToStack(svc dockerx.ServiceView, stackName string) bool {
+	if stackName == "" {
+		return false
+	}
+	if svc.StackLabel == stackName {
+		return true
+	}
+	if !strings.HasPrefix(svc.Name, stackName) {
+		return false
+	}
+	if len(svc.Name) == len(stackName) {
+		return true
+	}
+	next := svc.Name[len(stackName)]
+	return next == '-' || next == '_' || next == '.'
+}
+
+// suggestStackName picks a stack name for a violating service.
+func suggestStackName(svc dockerx.ServiceView, resolved string, stackMap map[string]models.Stack) string {
+	if resolved != "" {
+		return resolved
+	}
+	if svc.StackLabel != "" {
+		return svc.StackLabel
+	}
+	// No reliable stack name for pure orphans without label.
+	return ""
+}
+
+// ListViolationStacks groups current violating services by stack name.
+func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationStack, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	stacks, err := e.store.ListStacks()
+	if err != nil {
+		return nil, err
+	}
+	stackMap := map[string]models.Stack{}
+	for _, st := range stacks {
+		stackMap[st.Name] = st
+	}
+
+	services, err := e.docker.ListServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	type acc struct {
+		services map[string]struct{}
+		ports    map[string]struct{}
+		reasons  map[string]struct{}
+	}
+	groups := map[string]*acc{}
+
+	for _, svc := range services {
+		info := models.ServiceInfo{
+			ID:             svc.ID,
+			Name:           svc.Name,
+			Stack:          resolveStack(svc, stackMap),
+			PublishedPorts: publishedPortStrings(svc.PublishedPorts),
+		}
+		reason := evaluateViolation(info, svc.PublishedPorts, stackMap)
+		if reason == "" {
+			continue
+		}
+		name := suggestStackName(svc, info.Stack, stackMap)
+		if name == "" {
+			continue
+		}
+		g, ok := groups[name]
+		if !ok {
+			g = &acc{
+				services: map[string]struct{}{},
+				ports:    map[string]struct{}{},
+				reasons:  map[string]struct{}{},
+			}
+			groups[name] = g
+		}
+		g.services[svc.Name] = struct{}{}
+		g.reasons[reason] = struct{}{}
+		for _, p := range publishedPortStrings(svc.PublishedPorts) {
+			g.ports[p] = struct{}{}
+		}
+	}
+
+	out := make([]models.ViolationStack, 0, len(groups))
+	for name, g := range groups {
+		item := models.ViolationStack{
+			Name:         name,
+			ServiceCount: len(g.services),
+			Services:     make([]string, 0, len(g.services)),
+			Ports:        make([]string, 0, len(g.ports)),
+			Reasons:      make([]string, 0, len(g.reasons)),
+			Configured:   false,
+		}
+		if _, ok := stackMap[name]; ok {
+			item.Configured = true
+		}
+		for s := range g.services {
+			item.Services = append(item.Services, s)
+		}
+		for p := range g.ports {
+			item.Ports = append(item.Ports, p)
+		}
+		for r := range g.reasons {
+			item.Reasons = append(item.Reasons, r)
+		}
+		sort.Strings(item.Services)
+		sort.Strings(item.Ports)
+		sort.Strings(item.Reasons)
+		out = append(out, item)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// WhitelistStack creates/ensures stack and adds published ports from matching running services.
+func (e *Engine) WhitelistStack(ctx context.Context, name, description string) (*models.WhitelistStackResult, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("stack name is required")
+	}
+
+	created := false
+	st, err := e.store.GetStackByName(name)
+	if err != nil {
+		return nil, err
+	}
+	if st == nil {
+		st, err = e.store.CreateStack(name, description)
+		if err != nil {
+			return nil, err
+		}
+		created = true
+	}
+
+	raw, err := e.docker.ListServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.WhitelistStackResult{
+		Created:         created,
+		AddedPorts:      []string{},
+		SkippedPorts:    []string{},
+		MatchedServices: []string{},
+	}
+
+	seenPort := map[string]struct{}{}
+	for _, svc := range raw {
+		if !serviceBelongsToStack(svc, name) {
+			continue
+		}
+		result.MatchedServices = append(result.MatchedServices, svc.Name)
+		for _, p := range svc.PublishedPorts {
+			key := fmt.Sprintf("%d/%s", p.PublishedPort, p.Protocol)
+			if _, ok := seenPort[key]; ok {
+				continue
+			}
+			seenPort[key] = struct{}{}
+			portStr := strconv.FormatUint(uint64(p.PublishedPort), 10)
+			proto := p.Protocol
+			if proto == "" {
+				proto = "tcp"
+			}
+			exists, err := e.store.HasPort(st.ID, portStr, proto)
+			if err != nil {
+				return nil, err
+			}
+			if exists {
+				result.SkippedPorts = append(result.SkippedPorts, key)
+				continue
+			}
+			if _, err := e.store.AddPort(st.ID, portStr, proto); err != nil {
+				return nil, err
+			}
+			result.AddedPorts = append(result.AddedPorts, key)
+		}
+	}
+	sort.Strings(result.MatchedServices)
+	sort.Strings(result.AddedPorts)
+	sort.Strings(result.SkippedPorts)
+
+	st, _ = e.store.GetStack(st.ID)
+	result.Stack = st
+	return result, nil
+}

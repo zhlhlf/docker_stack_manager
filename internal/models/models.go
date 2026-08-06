@@ -75,3 +75,28 @@ type AddPortRequest struct {
 	Port     string `json:"port"`
 	Protocol string `json:"protocol"`
 }
+
+// ViolationStack groups violating services under a stack name.
+type ViolationStack struct {
+	Name         string   `json:"name"`
+	ServiceCount int      `json:"service_count"`
+	Services     []string `json:"services"`
+	Ports        []string `json:"ports"`
+	Reasons      []string `json:"reasons"`
+	Configured   bool     `json:"configured"`
+}
+
+// WhitelistStackRequest one-click create stack + ports.
+type WhitelistStackRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// WhitelistStackResult is the result of whitelist action.
+type WhitelistStackResult struct {
+	Stack           *Stack   `json:"stack"`
+	Created         bool     `json:"created"`
+	AddedPorts      []string `json:"added_ports"`
+	SkippedPorts    []string `json:"skipped_ports"`
+	MatchedServices []string `json:"matched_services"`
+}

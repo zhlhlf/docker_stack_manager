@@ -54,6 +54,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/stacks/", s.handleStackSub)
 	s.mux.HandleFunc("/api/services", s.handleServices)
 	s.mux.HandleFunc("/api/violations", s.handleViolations)
+	s.mux.HandleFunc("/api/violation-stacks", s.handleViolationStacks)
+	s.mux.HandleFunc("/api/whitelist-stack", s.handleWhitelistStack)
 	s.mux.HandleFunc("/api/clean", s.handleClean)
 	s.mux.HandleFunc("/api/settings", s.handleSettings)
 	s.mux.HandleFunc("/api/stats", s.handleStats)
@@ -67,7 +69,6 @@ func (s *Server) spaFallback(next http.Handler) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		// Try static file first; if missing and not a file-looking path, serve index.html
 		if r.URL.Path != "/" {
 			f, err := s.static.Open(strings.TrimPrefix(r.URL.Path, "/"))
 			if err == nil {
@@ -76,7 +77,6 @@ func (s *Server) spaFallback(next http.Handler) http.HandlerFunc {
 				return
 			}
 		}
-		// SPA / dashboard entry
 		data, err := fs.ReadFile(embeddedStatic, "static/index.html")
 		if err != nil {
 			http.Error(w, "index.html missing in embed", http.StatusInternalServerError)
@@ -279,6 +279,37 @@ func (s *Server) handleViolations(w http.ResponseWriter, r *http.Request) {
 		violations = []models.ServiceInfo{}
 	}
 	writeJSON(w, http.StatusOK, "ok", violations)
+}
+
+func (s *Server) handleViolationStacks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	list, err := s.engine.ListViolationStacks(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "docker error: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, "ok", list)
+}
+
+func (s *Server) handleWhitelistStack(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req models.WhitelistStackRequest
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	result, err := s.engine.WhitelistStack(r.Context(), req.Name, req.Description)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, "whitelisted", result)
 }
 
 func (s *Server) handleClean(w http.ResponseWriter, r *http.Request) {
