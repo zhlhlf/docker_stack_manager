@@ -49,6 +49,25 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;");
 }
 
+function formatCST(value) {
+  if (!value) return "-";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  // China Standard Time (UTC+8)
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t) => parts.find((p) => p.type === t)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 function emptyRow(cols, text) {
   return `<tr class="empty-row"><td colspan="${cols}">${escapeHtml(text)}</td></tr>`;
 }
@@ -277,7 +296,7 @@ function renderLogs() {
   }
   body.innerHTML = state.logs
     .map((l) => `<tr>
-      <td>${escapeHtml(l.detected_at || "-")}</td>
+      <td>${escapeHtml(formatCST(l.detected_at))}</td>
       <td class="name-cell">${escapeHtml(l.service_name)}</td>
       <td>${escapeHtml(l.stack_name || "-")}</td>
       <td>${escapeHtml(reasonText(l.reason))}</td>
@@ -289,7 +308,7 @@ function renderLogs() {
 function renderSettings() {
   document.getElementById("auto_clean_enabled").checked = state.settings.auto_clean_enabled === "true";
   document.getElementById("clean_interval").value = state.settings.clean_interval || "300";
-  document.getElementById("last_clean_time").value = state.settings.last_clean_time || "-";
+  document.getElementById("last_clean_time").value = state.settings.last_clean_time ? formatCST(state.settings.last_clean_time) : "-";
   const dingEl = document.getElementById("dingtalk_webhook");
   if (dingEl) dingEl.value = state.settings.dingtalk_webhook || "";
 }
