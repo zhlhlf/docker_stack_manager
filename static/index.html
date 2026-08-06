@@ -18,15 +18,9 @@
         </div>
       </div>
       <nav class="menu">
-        <button class="menu-item active" data-page="dashboard">
-          <i class="fa-solid fa-gauge-high"></i><span>仪表板</span>
-        </button>
-        <button class="menu-item" data-page="violations">
-          <i class="fa-solid fa-shield-halved"></i><span>违规列表</span>
-        </button>
-        <button class="menu-item" data-page="settings">
-          <i class="fa-solid fa-sliders"></i><span>系统设置</span>
-        </button>
+        <button class="menu-item active" data-page="dashboard"><i class="fa-solid fa-gauge-high"></i><span>仪表板</span></button>
+        <button class="menu-item" data-page="violations"><i class="fa-solid fa-shield-halved"></i><span>违规列表</span></button>
+        <button class="menu-item" data-page="settings"><i class="fa-solid fa-sliders"></i><span>系统设置</span></button>
       </nav>
       <div class="sidebar-footer">
         <div class="footer-pill"><i class="fa-solid fa-circle-nodes"></i> x-ui style</div>
@@ -54,7 +48,7 @@
             <div class="card-title">
               <i class="fa-solid fa-layer-group"></i>
               <div>
-                <h2>Stack 列表</h2>
+                <h2>已配置 Stack</h2>
                 <p>管理 Stack 与端口白名单</p>
               </div>
             </div>
@@ -80,8 +74,8 @@
             <div class="card-title">
               <i class="fa-solid fa-list-check"></i>
               <div>
-                <h2>违规 Stack</h2>
-                <p>可一键加入白名单（创建 Stack 并收录运行中端口）</p>
+                <h2>Stack 状态（违规）</h2>
+                <p>右侧可一键加入白名单：创建 Stack 并收录所属服务发布端口</p>
               </div>
             </div>
           </div>
@@ -93,13 +87,14 @@
                   <th>服务数</th>
                   <th>运行端口</th>
                   <th>原因</th>
-                  <th style="width:160px">操作</th>
+                  <th style="width:170px">操作</th>
                 </tr>
               </thead>
               <tbody id="violation-stacks-body"></tbody>
             </table>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header">
             <div class="card-title">
@@ -143,7 +138,7 @@
               </div>
               <div class="group-toggle">
                 <span id="ok-toggle-text">点击展开</span>
-                <i class="fa-solid fa-chevron-down" id="ok-toggle-icon"></i>
+                <i class="fa-solid fa-chevron-down"></i>
               </div>
             </button>
             <div class="collapse-body hidden" id="ok-services-panel">
@@ -273,7 +268,6 @@
       <div id="modal-body"></div>
     </div>
   </div>
-
   <div id="toast" class="toast hidden"></div>
   <script src="/js/app.js"></script>
 </body>

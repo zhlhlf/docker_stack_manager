@@ -49,17 +49,6 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;");
 }
 
-function sortByStack(list) {
-  return [...(list || [])].sort((a, b) => {
-    const sa = a.stack || "";
-    const sb = b.stack || "";
-    if (!sa && sb) return 1;
-    if (sa && !sb) return -1;
-    if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
-    return (a.name || "").localeCompare(b.name || "", "zh-CN");
-  });
-}
-
 function emptyRow(cols, text) {
   return `<tr class="empty-row"><td colspan="${cols}">${escapeHtml(text)}</td></tr>`;
 }
@@ -91,13 +80,7 @@ function renderStats(stats = {}) {
     { label: "Stack 数量", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
     { label: "服务数量", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
     { label: "违规服务", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
-    {
-      label: "自动清理",
-      value: stats.auto_clean_enabled ? "开启" : "关闭",
-      color: "#7c3aed",
-      icon: "fa-robot",
-      tone: "purple",
-    },
+    { label: "自动清理", value: stats.auto_clean_enabled ? "开启" : "关闭", color: "#7c3aed", icon: "fa-robot", tone: "purple" },
   ];
   document.getElementById("stats-cards").innerHTML = cards
     .map(
@@ -109,6 +92,60 @@ function renderStats(stats = {}) {
         <div class="value" style="color:${c.color}">${c.value}</div>
       </div>`
     )
+    .join("");
+}
+
+function renderViolationStacks() {
+  const body = document.getElementById("violation-stacks-body");
+  if (!body) return;
+  const list = state.violationStacks || [];
+  if (!list.length) {
+    body.innerHTML = emptyRow(5, "暂无违规 Stack（或无法推断 Stack 名）");
+    return;
+  }
+  body.innerHTML = list
+    .map((s) => {
+      const ports = (s.ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
+      const reasons = (s.reasons || []).map((r) => `<span class="badge badge-bad">${escapeHtml(reasonText(r))}</span>`).join(" ") || "-";
+      const conf = s.configured
+        ? `<span class="badge badge-muted">已配置</span>`
+        : `<span class="badge badge-bad">未配置</span>`;
+      return `<tr>
+        <td class="name-cell">${escapeHtml(s.name)} ${conf}</td>
+        <td>${s.service_count ?? (s.services || []).length}</td>
+        <td>${ports}</td>
+        <td>${reasons}</td>
+        <td class="actions">
+          <button class="btn btn-primary btn-sm" data-whitelist-stack="${escapeHtml(s.name)}">
+            <i class="fa-solid fa-plus"></i> 加入白名单
+          </button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderStacks() {
+  const body = document.getElementById("stacks-body");
+  if (!state.stacks.length) {
+    body.innerHTML = emptyRow(4, "暂无 Stack，请先新增");
+    return;
+  }
+  body.innerHTML = state.stacks
+    .map((s) => {
+      const ports = (s.ports || [])
+        .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
+        .join(" ") || `<span class="muted">无端口（不允许开放）</span>`;
+      return `<tr>
+        <td class="name-cell">${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.description || "-")}</td>
+        <td>${ports}</td>
+        <td class="actions">
+          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
+          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 删除</button>
+        </td>
+      </tr>`;
+    })
     .join("");
 }
 
@@ -181,56 +218,6 @@ function renderViolationStacks() {
             <i class="fa-solid fa-plus"></i> 加入白名单
           </button>
         </td>
-      </tr>`;
-    })
-    .join("");
-}
-
-function renderStacks() {
-  const body = document.getElementById("stacks-body");
-  if (!state.stacks.length) {
-    body.innerHTML = emptyRow(4, "暂无 Stack，请先新增");
-    return;
-  }
-  body.innerHTML = state.stacks
-    .map((s) => {
-      const ports = (s.ports || [])
-        .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
-        .join(" ") || `<span class="muted">无端口（不允许开放）</span>`;
-      return `<tr>
-        <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.description || "-")}</td>
-        <td>${ports}</td>
-        <td class="actions">
-          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
-          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 删除</button>
-        </td>
-      </tr>`;
-    })
-    .join("");
-}
-
-function renderViolations() {
-  const reason = document.getElementById("filter-reason").value;
-  const stack = document.getElementById("filter-stack").value.trim().toLowerCase();
-  const list = state.violations.filter((v) => {
-    if (reason && v.violation?.reason !== reason) return false;
-    if (stack && !(v.stack || "").toLowerCase().includes(stack)) return false;
-    return true;
-  });
-  const body = document.getElementById("violations-body");
-  if (!list.length) {
-    body.innerHTML = emptyRow(4, "当前无违规服务");
-    return;
-  }
-  body.innerHTML = list
-    .map((s) => {
-      const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
-      return `<tr>
-        <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "未归属")}</td>
-        <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
-        <td>${ports}</td>
       </tr>`;
     })
     .join("");
@@ -388,8 +375,8 @@ async function refreshAll() {
   ]);
 
   state.stacks = stacksRes.data || [];
-  state.services = sortByStack(servicesRes.data || []);
-  state.violations = sortByStack(violationsRes.data || []);
+  state.services = servicesRes.data || [];
+  state.violations = violationsRes.data || [];
   state.violationStacks = violationStacksRes.data || [];
   state.settings = settingsRes.data || {};
   state.logs = logsRes.data || [];
@@ -398,7 +385,6 @@ async function refreshAll() {
   renderStacks();
   renderViolationStacks();
   renderServices();
-  renderViolations();
   renderLogs();
   renderSettings();
 
@@ -457,6 +443,31 @@ function bindEvents() {
       }
     }
   });
+  const vsBody = document.getElementById("violation-stacks-body");
+  if (vsBody) {
+    vsBody.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-whitelist-stack]");
+      if (!btn) return;
+      const name = btn.dataset.whitelistStack;
+      if (!name) return;
+      if (!confirm(`确认将 Stack「${name}」加入白名单？\n将创建/确保 Stack，并把当前匹配服务的发布端口加入白名单。`)) return;
+      btn.disabled = true;
+      try {
+        const res = await api("/api/whitelist-stack", {
+          method: "POST",
+          body: JSON.stringify({ name, description: "auto whitelist from dashboard" }),
+        });
+        const added = (res.data?.added_ports || []).length;
+        const matched = (res.data?.matched_services || []).length;
+        toast(`已加入白名单：服务 ${matched} 个，新增端口 ${added} 个`);
+        await refreshAll();
+      } catch (err) {
+        toast(err.message, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
   document.getElementById("filter-reason").onchange = renderViolations;
   document.getElementById("filter-stack").oninput = renderViolations;
   document.getElementById("settings-form").onsubmit = async (e) => {
