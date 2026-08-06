@@ -396,6 +396,11 @@ function bindEvents() {
     }
   };
   document.getElementById("btn-add-stack").onclick = () => openStackModal(null);
+  const okToggle = document.getElementById("toggle-ok-services");
+  if (okToggle) {
+    okToggle.onclick = () => toggleOkServices();
+    toggleOkServices(false);
+  }
   document.getElementById("modal-close").onclick = closeModal;
   document.getElementById("modal").addEventListener("click", (e) => {
     if (e.target.id === "modal") closeModal();
