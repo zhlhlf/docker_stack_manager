@@ -125,10 +125,27 @@ function renderViolationStacks() {
     .join("");
 }
 
+function countServicesForStack(stackName) {
+  const name = stackName || "";
+  if (!name) return 0;
+  return (state.services || []).filter((svc) => {
+    const st = svc.stack || "";
+    if (st === name) return true;
+    // parent unit also counts child-like names if detect resolved to parent
+    if (st && st.startsWith(name + "-")) return true;
+    if (st && st.startsWith(name + "_")) return true;
+    if (st && st.startsWith(name + ".")) return true;
+    const sn = svc.name || "";
+    if (sn === name) return true;
+    if (sn.startsWith(name + "-") || sn.startsWith(name + "_") || sn.startsWith(name + ".")) return true;
+    return false;
+  }).length;
+}
+
 function renderStacks() {
   const body = document.getElementById("stacks-body");
   if (!state.stacks.length) {
-    body.innerHTML = emptyRow(4, "暂无 Stack，请先新增");
+    body.innerHTML = emptyRow(5, "暂无 Stack，请先新增");
     return;
   }
   body.innerHTML = state.stacks
@@ -136,9 +153,11 @@ function renderStacks() {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
         .join(" ") || `<span class="muted">无端口（不允许开放）</span>`;
+      const svcCount = countServicesForStack(s.name);
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.description || "-")}</td>
+        <td><span class="count-pill ok">${svcCount}</span></td>
         <td>${ports}</td>
         <td class="actions">
           <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
