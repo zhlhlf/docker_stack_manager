@@ -42,6 +42,7 @@ func New(path string) (*Store, error) {
 				"auto_clean_enabled": "false",
 				"clean_interval":     "300",
 				"last_clean_time":    "",
+				"dingtalk_webhook":    "",
 			},
 			Logs: []models.ViolationLog{},
 		},
@@ -78,6 +79,9 @@ func (s *Store) load() error {
 	}
 	if _, ok := p.Settings["last_clean_time"]; !ok {
 		p.Settings["last_clean_time"] = ""
+	}
+	if _, ok := p.Settings["dingtalk_webhook"]; !ok {
+		p.Settings["dingtalk_webhook"] = ""
 	}
 	if p.NextStackID < 1 {
 		p.NextStackID = 1

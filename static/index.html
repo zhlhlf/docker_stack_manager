@@ -253,6 +253,11 @@
               <div class="setting-label">上次清理时间</div>
               <input type="text" id="last_clean_time" class="input" readonly />
             </div>
+            <div class="setting-item col">
+              <div class="setting-label">钉钉机器人 Webhook</div>
+              <div class="setting-desc">配置后，手动/定时清理若删除了服务会推送通知；留空则关闭</div>
+              <input type="text" id="dingtalk_webhook" class="input" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." />
+            </div>
             <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> 保存设置</button>
           </form>
         </div>

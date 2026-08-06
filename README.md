@@ -45,3 +45,12 @@ Docker 闇€瑕侊細
 ## CI
 - push `main` 瑙﹀彂 Release
 - tag = `v` + commit 鍓?8 浣?- 浠呮瀯寤?Linux amd64
+
+## 钉钉推送
+清理（手动一键 / 定时自动）若实际删除了服务，可推送钉钉机器人。
+
+配置方式（二选一，设置页优先）：
+1. 环境变量 / 参数：`DING_URL` 或 `-ding`
+2. 面板「系统设置」→ 钉钉机器人 Webhook
+
+仅当 `cleaned > 0` 时推送。

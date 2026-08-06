@@ -14,6 +14,7 @@ import (
 	"docker_stack_manager/internal/db"
 	"docker_stack_manager/internal/detector"
 	dockerx "docker_stack_manager/internal/docker"
+	"docker_stack_manager/internal/notify"
 	"docker_stack_manager/internal/scheduler"
 )
 
@@ -48,7 +49,14 @@ func main() {
 	}
 	cancel()
 
-	engine := detector.New(store, dockerClient)
+	ding := notify.NewDingTalk(cfg.DingURL)
+	if ding.Enabled() {
+		log.Println("dingtalk webhook enabled (DING_URL)")
+	} else {
+		log.Println("dingtalk webhook not set via env; can configure in settings UI")
+	}
+
+	engine := detector.New(store, dockerClient, ding)
 	sched := scheduler.New(store, engine)
 	sched.Start()
 	defer sched.Stop()

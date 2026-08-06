@@ -317,7 +317,7 @@ func (s *Server) handleClean(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	cleaned, all, err := s.engine.Clean(r.Context())
+	cleaned, all, err := s.engine.Clean(r.Context(), "manual")
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

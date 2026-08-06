@@ -290,6 +290,8 @@ function renderSettings() {
   document.getElementById("auto_clean_enabled").checked = state.settings.auto_clean_enabled === "true";
   document.getElementById("clean_interval").value = state.settings.clean_interval || "300";
   document.getElementById("last_clean_time").value = state.settings.last_clean_time || "-";
+  const dingEl = document.getElementById("dingtalk_webhook");
+  if (dingEl) dingEl.value = state.settings.dingtalk_webhook || "";
 }
 
 function openStackModal(stack) {
@@ -522,6 +524,7 @@ function bindEvents() {
     const payload = {
       auto_clean_enabled: document.getElementById("auto_clean_enabled").checked ? "true" : "false",
       clean_interval: String(document.getElementById("clean_interval").value || "300"),
+      dingtalk_webhook: (document.getElementById("dingtalk_webhook")?.value || "").trim(),
     };
     try {
       await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });

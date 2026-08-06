@@ -12,6 +12,8 @@ import (
 	"docker_stack_manager/internal/db"
 	dockerx "docker_stack_manager/internal/docker"
 	"docker_stack_manager/internal/models"
+	"docker_stack_manager/internal/notify"
+	"log"
 )
 
 const (
@@ -21,14 +23,15 @@ const (
 
 // Engine performs detection and cleanup.
 type Engine struct {
-	store  *db.Store
-	docker *dockerx.Client
-	mu     sync.Mutex
+	store    *db.Store
+	docker   *dockerx.Client
+	notifier *notify.DingTalk
+	mu       sync.Mutex
 }
 
 // New creates a detector engine.
-func New(store *db.Store, dockerClient *dockerx.Client) *Engine {
-	return &Engine{store: store, docker: dockerClient}
+func New(store *db.Store, dockerClient *dockerx.Client, notifier *notify.DingTalk) *Engine {
+	return &Engine{store: store, docker: dockerClient, notifier: notifier}
 }
 
 // Detect evaluates all services against configured stacks.
@@ -39,7 +42,8 @@ func (e *Engine) Detect(ctx context.Context) ([]models.ServiceInfo, error) {
 }
 
 // Clean detects and removes violating services.
-func (e *Engine) Clean(ctx context.Context) (cleaned []models.ServiceInfo, all []models.ServiceInfo, err error) {
+// source: "manual" | "scheduler" (for DingTalk message)
+func (e *Engine) Clean(ctx context.Context, source string) (cleaned []models.ServiceInfo, all []models.ServiceInfo, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -63,9 +67,28 @@ func (e *Engine) Clean(ctx context.Context) (cleaned []models.ServiceInfo, all [
 	if cleaned == nil {
 		cleaned = []models.ServiceInfo{}
 	}
+
+	// Push DingTalk only when something was actually cleaned.
+	if len(cleaned) > 0 {
+		webhook := ""
+		if e.notifier != nil {
+			webhook = e.notifier.Webhook
+		}
+		if v, _ := e.store.GetSetting("dingtalk_webhook"); strings.TrimSpace(v) != "" {
+			webhook = strings.TrimSpace(v)
+		}
+		if webhook != "" {
+			n := notify.NewDingTalk(webhook)
+			if nerr := n.NotifyClean(cleaned, source); nerr != nil {
+				log.Printf("[notify] dingtalk push failed: %v", nerr)
+			} else {
+				log.Printf("[notify] dingtalk push ok: cleaned=%d source=%s", len(cleaned), source)
+			}
+		}
+	}
+
 	return cleaned, all, nil
 }
-
 func (e *Engine) detectLocked(ctx context.Context, logViolations bool) ([]models.ServiceInfo, error) {
 	stacks, err := e.store.ListStacks()
 	if err != nil {

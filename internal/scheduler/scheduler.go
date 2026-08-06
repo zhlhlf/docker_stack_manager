@@ -94,7 +94,7 @@ func (s *Scheduler) runOnce(ctx context.Context) {
 	defer cancel()
 
 	if auto == "true" {
-		cleaned, all, err := s.engine.Clean(runCtx)
+		cleaned, all, err := s.engine.Clean(runCtx, "scheduler")
 		if err != nil {
 			log.Printf("[scheduler] clean error: %v", err)
 			return
