@@ -1,9 +1,12 @@
-# binaries
+# binaries / build
 *.exe
 *.exe~
 docker_stack_manager
 docker_stack_manager_linux_amd64
+docker_stack_manager_linux_arm64
+docker_stack_manager_*
 dist/
+bin/
 
 # runtime data
 data.json
