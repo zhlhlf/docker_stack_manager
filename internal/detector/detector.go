@@ -272,6 +272,17 @@ func serviceBelongsToStack(svc dockerx.ServiceView, stackName string) bool {
 	if svc.StackLabel == stackName {
 		return true
 	}
+	// Parent unit matches child docker stack labels:
+	// stackName=csc-preview-bank, label=csc-preview-bank-bf
+	if svc.StackLabel != "" && strings.HasPrefix(svc.StackLabel, stackName) {
+		if len(svc.StackLabel) == len(stackName) {
+			return true
+		}
+		ch := svc.StackLabel[len(stackName)]
+		if ch == '-' || ch == '_' || ch == '.' {
+			return true
+		}
+	}
 	if !strings.HasPrefix(svc.Name, stackName) {
 		return false
 	}
@@ -300,9 +311,11 @@ type violationRow struct {
 
 // ListViolationStacks groups current violating services by stack name.
 // Rules for stack unit name:
-//  1) resolved/configured stack or docker stack label
-//  2) if multiple violating services share the same network and a common name prefix,
-//     use that common prefix as one stack unit (longest boundary-aware prefix)
+//  1) resolved/configured stack or docker stack label (initial)
+//  2) services on the same network whose stack labels/names share a common
+//     boundary-aware prefix are merged into that prefix unit
+//     e.g. labels csc-preview-bank-bf / csc-preview-bank-czt / csc-preview-bank-dp
+//          on one network => unit "csc-preview-bank"
 func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationStack, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -337,17 +350,20 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 		viols = append(viols, violationRow{svc: svc, reason: reason, stack: name})
 	}
 
+	// Fill empty names first via network+service-name prefix.
 	orphans := make([]violationRow, 0)
 	named := make([]violationRow, 0)
 	for _, v := range viols {
-		if v.stack == "" {
+		if strings.TrimSpace(v.stack) == "" {
 			orphans = append(orphans, v)
 		} else {
 			named = append(named, v)
 		}
 	}
-	inferred := inferStackUnitsByNetworkPrefix(orphans)
-	viols = append(named, inferred...)
+	viols = append(named, inferStackUnitsByNetworkPrefix(orphans)...)
+
+	// Merge different labels that share network + common prefix into one unit.
+	viols = mergeSameNetworkCommonPrefix(viols)
 
 	type acc struct {
 		services map[string]struct{}
@@ -356,7 +372,7 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 	}
 	groups := map[string]*acc{}
 	for _, v := range viols {
-		name := v.stack
+		name := strings.TrimSpace(v.stack)
 		if name == "" {
 			continue
 		}
@@ -407,6 +423,100 @@ func (e *Engine) ListViolationStacks(ctx context.Context) ([]models.ViolationSta
 	return out, nil
 }
 
+// mergeSameNetworkCommonPrefix rewrites stack names for violators that share at
+// least one network and whose current stack names share a boundary-aware prefix.
+func mergeSameNetworkCommonPrefix(rows []violationRow) []violationRow {
+	if len(rows) < 2 {
+		return rows
+	}
+
+	// network -> row indexes
+	byNet := map[string][]int{}
+	for i, v := range rows {
+		nets := v.svc.Networks
+		if len(nets) == 0 {
+			continue
+		}
+		for _, n := range nets {
+			byNet[n] = append(byNet[n], i)
+		}
+	}
+
+	assigned := make([]string, len(rows))
+	for i := range rows {
+		assigned[i] = rows[i].stack
+	}
+
+	for _, idxs := range byNet {
+		if len(idxs) < 2 {
+			continue
+		}
+		// unique stack names currently used by this network group
+		nameSet := map[string]struct{}{}
+		var names []string
+		for _, i := range idxs {
+			n := strings.TrimSpace(assigned[i])
+			if n == "" {
+				// fallback to service name for prefix calc
+				n = rows[i].svc.Name
+			}
+			if _, ok := nameSet[n]; ok {
+				continue
+			}
+			nameSet[n] = struct{}{}
+			names = append(names, n)
+		}
+		if len(names) < 2 {
+			continue
+		}
+		prefix := longestCommonBoundaryPrefix(names)
+		if prefix == "" {
+			continue
+		}
+		// only merge if prefix is strictly shorter than at least one name
+		// (otherwise they are already the same unit)
+		shorter := false
+		for _, n := range names {
+			if n != prefix {
+				shorter = true
+				break
+			}
+		}
+		if !shorter {
+			continue
+		}
+		for _, i := range idxs {
+			// Prefer longer unit already assigned from another net only if longer.
+			if assigned[i] == "" || len(prefix) < len(assigned[i]) || !strings.HasPrefix(assigned[i], prefix) {
+				// If current name already starts with prefix, collapse to prefix.
+				cur := assigned[i]
+				if cur == "" || strings.HasPrefix(cur, prefix) {
+					assigned[i] = prefix
+				}
+			}
+			// Always collapse when current stack/label is a child of prefix.
+			if assigned[i] != prefix && strings.HasPrefix(assigned[i], prefix) {
+				nextOK := false
+				if len(assigned[i]) == len(prefix) {
+					nextOK = true
+				} else {
+					ch := assigned[i][len(prefix)]
+					nextOK = ch == '-' || ch == '_' || ch == '.'
+				}
+				if nextOK {
+					assigned[i] = prefix
+				}
+			}
+		}
+	}
+
+	out := make([]violationRow, len(rows))
+	for i, v := range rows {
+		v.stack = assigned[i]
+		out[i] = v
+	}
+	return out
+}
 func inferStackUnitsByNetworkPrefix(orphans []violationRow) []violationRow {
 	if len(orphans) == 0 {
 		return nil
