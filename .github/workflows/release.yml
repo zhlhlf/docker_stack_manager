@@ -65,6 +65,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+  go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
+  -o dist/docker_stack_manager_linux_arm64 .
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
             go build -ldflags "-s -w -X main.Version=${SHORT_SHA}" \
             -o dist/docker_stack_manager_linux_amd64 .
