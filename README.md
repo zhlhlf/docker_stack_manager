@@ -1,26 +1,21 @@
 # Docker Stack Manager
 
-轻量级 Docker Swarm Stack 服务管理面板。
+杞婚噺绾?Docker Swarm Stack 鏈嶅姟绠＄悊闈㈡澘銆?
+## 鍔熻兘
+- Stack 涓庣鍙ｇ櫧鍚嶅崟绠＄悊
+- **鐪熷疄 Docker Swarm Service** 褰掑睘/绔彛杩濊妫€娴?- 涓€閿竻鐞?/ 瀹氭椂鑷姩娓呯悊
+- 鍓嶇 `go:embed` 鎵撹繘鍗曚簩杩涘埗
+- x-ui 椋庢牸 Web UI
 
-## 功能
-- Stack 与端口白名单管理
-- **真实 Docker Swarm Service** 归属/端口违规检测
-- 一键清理 / 定时自动清理
-- 前端 `go:embed` 打进单二进制
-- x-ui 风格 Web UI
-
-## 运行（需要可访问 Docker Engine）
-
+## 杩愯锛堥渶瑕佸彲璁块棶 Docker Engine锛?
 ```bash
-# 本机（Linux / 已装 Docker）
-go run .
-# 或
-./docker_stack_manager_linux_amd64 -addr :8080
+# 鏈満锛圠inux / 宸茶 Docker锛?go run .
+# 鎴?./docker_stack_manager_linux_amd64 -addr :8080
 ```
 
-浏览器：http://localhost:8080
+娴忚鍣細http://localhost:8080
 
-### 容器运行（推荐）
+### 瀹瑰櫒杩愯锛堟帹鑽愶級
 
 ```bash
 docker run -d --name stack-manager \
@@ -30,29 +25,23 @@ docker run -d --name stack-manager \
   ghcr.io/zhlhlf/docker_stack_manager:latest
 ```
 
-> 必须挂载 Docker socket，程序通过 Engine API 读取/删除 Swarm Service。
+> 蹇呴』鎸傝浇 Docker socket锛岀▼搴忛€氳繃 Engine API 璇诲彇/鍒犻櫎 Swarm Service銆?
+### 鍙傛暟 / 鐜鍙橀噺
+- `-addr` / `LISTEN_ADDR`  榛樿 `:8080`
+- `-db` / `DB_PATH`        榛樿 `data.json`
 
-### 参数 / 环境变量
-- `-addr` / `LISTEN_ADDR`  默认 `:8080`
-- `-db` / `DB_PATH`        默认 `data.json`
-
-### 权限
-Docker 需要：
+### 鏉冮檺
+Docker 闇€瑕侊細
 - `ServiceList`
-- `ServiceInspect`（列表已含）
+- `ServiceInspect`锛堝垪琛ㄥ凡鍚級
 - `ServiceRemove`
 
-建议跑在 Swarm manager 节点。
-
-## 违规规则
-1. 无法归属到已配置 Stack  
-   - 优先标签 `com.docker.stack.namespace`  
-   - 其次服务名前缀 `<stack>_<service>` 且 Stack 已配置
-2. 已归属 Stack，但**发布端口**不在白名单  
-   - 白名单为空 = 不允许任何发布端口
-3. 无发布端口的服务不判定端口违规
-
+寤鸿璺戝湪 Swarm manager 鑺傜偣銆?
+## 杩濊瑙勫垯
+1. 鏃犳硶褰掑睘鍒板凡閰嶇疆 Stack  
+   - 浼樺厛鏍囩 `com.docker.stack.namespace`  
+   - 鍏舵鏈嶅姟鍚嶅墠缂€ `<stack>_<service>` 涓?Stack 宸查厤缃?2. 宸插綊灞?Stack锛屼絾**鍙戝竷绔彛**涓嶅湪鐧藉悕鍗? 
+   - 鐧藉悕鍗曚负绌?= 涓嶅厑璁镐换浣曞彂甯冪鍙?3. 鏃犲彂甯冪鍙ｇ殑鏈嶅姟涓嶅垽瀹氱鍙ｈ繚瑙?
 ## CI
-- push `main` 触发 Release
-- tag = `v` + commit 前 8 位
-- 仅构建 Linux amd64
+- push `main` 瑙﹀彂 Release
+- tag = `v` + commit 鍓?8 浣?- 浠呮瀯寤?Linux amd64

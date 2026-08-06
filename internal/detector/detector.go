@@ -1,4 +1,4 @@
-﻿package detector
+package detector
 
 import (
 	"context"
@@ -102,17 +102,51 @@ func (e *Engine) detectLocked(ctx context.Context, logViolations bool) ([]models
 	return out, nil
 }
 
+// resolveStack decides which configured stack a service belongs to.
+// Priority:
+//  1) Docker label com.docker.stack.namespace if it matches a configured stack
+//  2) Longest configured stack-name prefix of the service name
+//     e.g. service "czt-zhongtoubao-czt" + stack "czt-zhongtoubao" => match
+//  3) Label value even if not configured (will be treated as no_stack later)
 func resolveStack(svc dockerx.ServiceView, stackMap map[string]models.Stack) string {
+	if svc.StackLabel != "" {
+		if _, ok := stackMap[svc.StackLabel]; ok {
+			return svc.StackLabel
+		}
+	}
+	if name := matchStackByPrefix(svc.Name, stackMap); name != "" {
+		return name
+	}
+	// Unconfigured label still returned for display; evaluateViolation marks no_stack.
 	if svc.StackLabel != "" {
 		return svc.StackLabel
 	}
-	if idx := strings.Index(svc.Name, "_"); idx > 0 {
-		prefix := svc.Name[:idx]
-		if _, ok := stackMap[prefix]; ok {
-			return prefix
+	return ""
+}
+
+// matchStackByPrefix picks the longest configured stack name that is a prefix of serviceName.
+// If serviceName is longer than the stack, the next character must be a separator (- _ .).
+func matchStackByPrefix(serviceName string, stackMap map[string]models.Stack) string {
+	best := ""
+	for name := range stackMap {
+		if !strings.HasPrefix(serviceName, name) {
+			continue
+		}
+		if len(serviceName) == len(name) {
+			if len(name) > len(best) {
+				best = name
+			}
+			continue
+		}
+		// require boundary so "web" does not claim "webapp"
+		next := serviceName[len(name)]
+		if next == '-' || next == '_' || next == '.' {
+			if len(name) > len(best) {
+				best = name
+			}
 		}
 	}
-	return ""
+	return best
 }
 
 func evaluateViolation(info models.ServiceInfo, ports []dockerx.PublishedPort, stackMap map[string]models.Stack) string {
