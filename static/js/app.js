@@ -8,9 +8,9 @@ const state = {
 };
 
 const pageMeta = {
-  dashboard: { title: "仪表板", subtitle: "监控 Stack 服务与端口合规状态" },
-  violations: { title: "违规列表", subtitle: "查看并清理不合规 Swarm 服务" },
-  settings: { title: "系统设置", subtitle: "配置自动清理策略与检测间隔" },
+  dashboard: { title: "浠〃鏉?, subtitle: "鐩戞帶 Stack 鏈嶅姟涓庣鍙ｅ悎瑙勭姸鎬? },
+  violations: { title: "杩濊鍒楄〃", subtitle: "鏌ョ湅骞舵竻鐞嗕笉鍚堣 Swarm 鏈嶅姟" },
+  settings: { title: "绯荤粺璁剧疆", subtitle: "閰嶇疆鑷姩娓呯悊绛栫暐涓庢娴嬮棿闅? },
 };
 
 async function api(path, options = {}) {
@@ -35,8 +35,8 @@ function toast(message, type = "ok") {
 }
 
 function reasonText(reason) {
-  if (reason === "no_stack") return "无 Stack 归属";
-  if (reason === "port_not_allowed") return "端口不在白名单";
+  if (reason === "no_stack") return "鏃?Stack 褰掑睘";
+  if (reason === "port_not_allowed") return "绔彛涓嶅湪鐧藉悕鍗?;
   return reason || "-";
 }
 
@@ -46,6 +46,17 @@ function escapeHtml(str) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function sortByStack(list) {
+  return [...list].sort((a, b) => {
+    const sa = a.stack || "";
+    const sb = b.stack || "";
+    if (!sa && sb) return 1;
+    if (sa && !sb) return -1;
+    if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
+    return (a.name || "").localeCompare(b.name || "", "zh-CN");
+  });
 }
 
 function emptyRow(cols, text) {
@@ -76,12 +87,12 @@ function closeModal() {
 
 function renderStats(stats = {}) {
   const cards = [
-    { label: "Stack 数量", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
-    { label: "服务数量", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
-    { label: "违规服务", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
+    { label: "Stack 鏁伴噺", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
+    { label: "鏈嶅姟鏁伴噺", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
+    { label: "杩濊鏈嶅姟", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
     {
-      label: "自动清理",
-      value: stats.auto_clean_enabled ? "开启" : "关闭",
+      label: "鑷姩娓呯悊",
+      value: stats.auto_clean_enabled ? "寮€鍚? : "鍏抽棴",
       color: "#7c3aed",
       icon: "fa-robot",
       tone: "purple",
@@ -103,21 +114,21 @@ function renderStats(stats = {}) {
 function renderStacks() {
   const body = document.getElementById("stacks-body");
   if (!state.stacks.length) {
-    body.innerHTML = emptyRow(4, "暂无 Stack，点击右上角新增");
+    body.innerHTML = emptyRow(4, "鏆傛棤 Stack锛岀偣鍑诲彸涓婅鏂板");
     return;
   }
   body.innerHTML = state.stacks
     .map((s) => {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
-        .join(" ") || `<span class="chip-empty">无端口（不允许开放）</span>`;
+        .join(" ") || `<span class="chip-empty">鏃犵鍙ｏ紙涓嶅厑璁稿紑鏀撅級</span>`;
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.description || "-")}</td>
         <td>${ports}</td>
         <td class="actions">
-          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 编辑</button>
-          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 删除</button>
+          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 缂栬緫</button>
+          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 鍒犻櫎</button>
         </td>
       </tr>`;
     })
@@ -127,7 +138,7 @@ function renderStacks() {
 function renderServices() {
   const body = document.getElementById("services-body");
   if (!state.services.length) {
-    body.innerHTML = emptyRow(4, "暂无服务或 Docker 不可用");
+    body.innerHTML = emptyRow(4, "鏆傛棤鏈嶅姟鎴?Docker 涓嶅彲鐢?);
     return;
   }
   body.innerHTML = state.services
@@ -135,11 +146,11 @@ function renderServices() {
       const ok = !s.violation?.is_violation;
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       const status = ok
-        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 合法</span>`
+        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 鍚堟硶</span>`
         : `<span class="badge badge-bad"><i class="fa-solid fa-xmark"></i> ${escapeHtml(reasonText(s.violation.reason))}</span>`;
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "未归属")}</td>
+        <td>${escapeHtml(s.stack || "鏈綊灞?)}</td>
         <td>${ports}</td>
         <td>${status}</td>
       </tr>`;
@@ -157,7 +168,7 @@ function renderViolations() {
   });
   const body = document.getElementById("violations-body");
   if (!list.length) {
-    body.innerHTML = emptyRow(4, "当前无违规服务");
+    body.innerHTML = emptyRow(4, "褰撳墠鏃犺繚瑙勬湇鍔?);
     return;
   }
   body.innerHTML = list
@@ -165,7 +176,7 @@ function renderViolations() {
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "未归属")}</td>
+        <td>${escapeHtml(s.stack || "鏈綊灞?)}</td>
         <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
         <td>${ports}</td>
       </tr>`;
@@ -176,7 +187,7 @@ function renderViolations() {
 function renderLogs() {
   const body = document.getElementById("logs-body");
   if (!state.logs.length) {
-    body.innerHTML = emptyRow(5, "暂无日志");
+    body.innerHTML = emptyRow(5, "鏆傛棤鏃ュ織");
     return;
   }
   body.innerHTML = state.logs
@@ -185,7 +196,7 @@ function renderLogs() {
       <td class="name-cell">${escapeHtml(l.service_name)}</td>
       <td>${escapeHtml(l.stack_name || "-")}</td>
       <td>${escapeHtml(reasonText(l.reason))}</td>
-      <td>${l.cleaned ? `<span class="badge badge-ok">已清理</span>` : `<span class="badge badge-muted">未清理</span>`}</td>
+      <td>${l.cleaned ? `<span class="badge badge-ok">宸叉竻鐞?/span>` : `<span class="badge badge-muted">鏈竻鐞?/span>`}</td>
     </tr>`)
     .join("");
 }
@@ -199,30 +210,30 @@ function renderSettings() {
 function openStackModal(stack) {
   state.editingStackId = stack?.id || null;
   const isEdit = !!stack;
-  openModal(isEdit ? `编辑 Stack · ${stack.name}` : "新增 Stack", `
+  openModal(isEdit ? `缂栬緫 Stack 路 ${stack.name}` : "鏂板 Stack", `
     <form class="stack-form" id="stack-form">
       <label>
-        <div>名称 ${isEdit ? "(不可修改)" : ""}</div>
-        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="例如 czt-zhongtoubao" />
+        <div>鍚嶇О ${isEdit ? "(涓嶅彲淇敼)" : ""}</div>
+        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="渚嬪 czt-zhongtoubao" />
       </label>
       <label>
-        <div>描述</div>
-        <textarea name="description" rows="2" placeholder="可选描述">${escapeHtml(stack?.description || "")}</textarea>
+        <div>鎻忚堪</div>
+        <textarea name="description" rows="2" placeholder="鍙€夋弿杩?>${escapeHtml(stack?.description || "")}</textarea>
       </label>
       ${isEdit ? `
         <div>
-          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">端口白名单</div>
+          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">绔彛鐧藉悕鍗?/div>
           <div class="port-row">
-            <input id="new-port" placeholder="8080 或 8080-8090" />
+            <input id="new-port" placeholder="8080 鎴?8080-8090" />
             <select id="new-proto"><option value="tcp">tcp</option><option value="udp">udp</option></select>
-            <button type="button" class="btn btn-primary" id="btn-add-port">添加</button>
+            <button type="button" class="btn btn-primary" id="btn-add-port">娣诲姞</button>
           </div>
           <div class="port-list" id="port-list"></div>
         </div>
-      ` : `<div class="muted">创建后可在编辑中配置端口白名单。空白名单表示不允许任何发布端口。</div>`}
+      ` : `<div class="muted">鍒涘缓鍚庡彲鍦ㄧ紪杈戜腑閰嶇疆绔彛鐧藉悕鍗曘€傜┖鐧藉悕鍗曡〃绀轰笉鍏佽浠讳綍鍙戝竷绔彛銆?/div>`}
       <div class="actions">
-        <button type="submit" class="btn btn-primary">${isEdit ? "保存描述" : "创建"}</button>
-        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">取消</button>
+        <button type="submit" class="btn btn-primary">${isEdit ? "淇濆瓨鎻忚堪" : "鍒涘缓"}</button>
+        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">鍙栨秷</button>
       </div>
     </form>
   `);
@@ -238,7 +249,7 @@ function openStackModal(stack) {
           method: "PUT",
           body: JSON.stringify({ description: fd.get("description") || "" }),
         });
-        toast("Stack 已更新");
+        toast("Stack 宸叉洿鏂?);
       } else {
         await api("/api/stacks", {
           method: "POST",
@@ -247,7 +258,7 @@ function openStackModal(stack) {
             description: fd.get("description") || "",
           }),
         });
-        toast("Stack 已创建");
+        toast("Stack 宸插垱寤?);
         closeModal();
       }
       await refreshAll();
@@ -265,13 +276,13 @@ function openStackModal(stack) {
     addPortBtn.onclick = async () => {
       const port = document.getElementById("new-port").value.trim();
       const protocol = document.getElementById("new-proto").value;
-      if (!port) return toast("请输入端口", "err");
+      if (!port) return toast("璇疯緭鍏ョ鍙?, "err");
       try {
         await api(`/api/stacks/${stack.id}/ports`, {
           method: "POST",
           body: JSON.stringify({ port, protocol }),
         });
-        toast("端口已添加");
+        toast("绔彛宸叉坊鍔?);
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -287,14 +298,14 @@ function renderPortList(stack) {
   if (!box) return;
   const ports = stack.ports || [];
   if (!ports.length) {
-    box.innerHTML = `<div class="muted">暂无端口</div>`;
+    box.innerHTML = `<div class="muted">鏆傛棤绔彛</div>`;
     return;
   }
   box.innerHTML = ports
     .map(
       (p) => `<div class="port-item">
         <span class="chip">${escapeHtml(p.port)} / ${escapeHtml(p.protocol || "tcp")}</span>
-        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">删除</button>
+        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">鍒犻櫎</button>
       </div>`
     )
     .join("");
@@ -302,7 +313,7 @@ function renderPortList(stack) {
     btn.onclick = async () => {
       try {
         await api(`/api/stacks/${stack.id}/ports/${btn.dataset.delPort}`, { method: "DELETE" });
-        toast("端口已删除");
+        toast("绔彛宸插垹闄?);
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -324,8 +335,8 @@ async function refreshAll() {
   ]);
 
   state.stacks = stacksRes.data || [];
-  state.services = servicesRes.data || [];
-  state.violations = violationsRes.data || [];
+  state.services = sortByStack(servicesRes.data || []);
+  state.violations = sortByStack(violationsRes.data || []);
   state.settings = settingsRes.data || {};
   state.logs = logsRes.data || [];
 
@@ -348,16 +359,16 @@ function bindEvents() {
   document.getElementById("btn-refresh").onclick = async () => {
     try {
       await refreshAll();
-      toast("已刷新");
+      toast("宸插埛鏂?);
     } catch (err) {
       toast(err.message, "err");
     }
   };
   document.getElementById("btn-clean").onclick = async () => {
-    if (!confirm("确认清理所有当前违规服务？此操作会删除 Docker Service。")) return;
+    if (!confirm("纭娓呯悊鎵€鏈夊綋鍓嶈繚瑙勬湇鍔★紵姝ゆ搷浣滀細鍒犻櫎 Docker Service銆?)) return;
     try {
       const res = await api("/api/clean", { method: "POST" });
-      toast(`清理完成，删除 ${res.data?.removed ?? 0} 个服务`);
+      toast(`娓呯悊瀹屾垚锛屽垹闄?${res.data?.removed ?? 0} 涓湇鍔);
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");
@@ -376,10 +387,10 @@ function bindEvents() {
       if (stack) openStackModal(stack);
     }
     if (delBtn) {
-      if (!confirm("确认删除该 Stack？")) return;
+      if (!confirm("纭鍒犻櫎璇?Stack锛?)) return;
       try {
         await api(`/api/stacks/${delBtn.dataset.delStack}`, { method: "DELETE" });
-        toast("已删除");
+        toast("宸插垹闄?);
         await refreshAll();
       } catch (err) {
         toast(err.message, "err");
@@ -396,7 +407,7 @@ function bindEvents() {
     };
     try {
       await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });
-      toast("设置已保存");
+      toast("璁剧疆宸蹭繚瀛?);
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");

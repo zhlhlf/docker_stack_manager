@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sort"
 	"sync"
 	"time"
 
@@ -99,6 +100,21 @@ func (e *Engine) detectLocked(ctx context.Context, logViolations bool) ([]models
 		}
 		out = append(out, info)
 	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		si, sj := out[i].Stack, out[j].Stack
+		// empty stack last
+		if si == "" && sj != "" {
+			return false
+		}
+		if si != "" && sj == "" {
+			return true
+		}
+		if si != sj {
+			return si < sj
+		}
+		return out[i].Name < out[j].Name
+	})
 	return out, nil
 }
 
