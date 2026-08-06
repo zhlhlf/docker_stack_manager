@@ -1,4 +1,4 @@
-package detector
+﻿package detector
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func New(store *db.Store, dockerClient *dockerx.Client) *Engine {
 func (e *Engine) Detect(ctx context.Context) ([]models.ServiceInfo, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.detectLocked(ctx, false)
+	return e.detectLocked(ctx, true)
 }
 
 // Clean detects and removes violating services.

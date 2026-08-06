@@ -2,7 +2,12 @@ package dockerx
 
 import (
 	"context"
-	"sync"
+	"fmt"
+	"strings"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 )
 
 // ServiceView is a simplified Docker service representation.
@@ -20,93 +25,107 @@ type PublishedPort struct {
 	Protocol      string
 }
 
-// Client wraps Docker access. Current build uses an in-memory mock so the
-// project compiles with pure Go stdlib (no external modules required).
-// Swap ListServices/RemoveService with real Docker Engine SDK calls for production.
+// Client wraps Docker Engine API access for Swarm services.
 type Client struct {
-	mu       sync.RWMutex
-	services []ServiceView
+	cli *client.Client
 }
 
-// New creates a client with demo swarm services.
+// New creates a Docker client from environment (DOCKER_HOST / default pipe or socket).
 func New() (*Client, error) {
-	return &Client{
-		services: []ServiceView{
-			{
-				ID:         "svc-webapp-api",
-				Name:       "webapp_api",
-				StackLabel: "webapp",
-				PublishedPorts: []PublishedPort{
-					{PublishedPort: 8080, TargetPort: 8080, Protocol: "tcp"},
-				},
-			},
-			{
-				ID:         "svc-webapp-bad",
-				Name:       "webapp_admin",
-				StackLabel: "webapp",
-				PublishedPorts: []PublishedPort{
-					{PublishedPort: 9999, TargetPort: 9999, Protocol: "tcp"},
-				},
-			},
-			{
-				ID:         "svc-db",
-				Name:       "db_mysql",
-				StackLabel: "db",
-				PublishedPorts: []PublishedPort{
-					{PublishedPort: 3306, TargetPort: 3306, Protocol: "tcp"},
-				},
-			},
-			{
-				ID:         "svc-orphan",
-				Name:       "legacy_app",
-				StackLabel: "",
-				PublishedPorts: []PublishedPort{
-					{PublishedPort: 3000, TargetPort: 3000, Protocol: "tcp"},
-				},
-			},
-			{
-				ID:             "svc-noports",
-				Name:           "worker_job",
-				StackLabel:     "webapp",
-				PublishedPorts: nil,
-			},
-		},
-	}, nil
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, fmt.Errorf("create docker client: %w", err)
+	}
+	return &Client{cli: cli}, nil
 }
 
-// Close closes the client.
-func (c *Client) Close() error { return nil }
-
-// Ping checks availability.
-func (c *Client) Ping(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
+// Close closes the Docker client.
+func (c *Client) Close() error {
+	if c == nil || c.cli == nil {
 		return nil
 	}
+	return c.cli.Close()
 }
 
-// ListServices returns current services.
+// Ping checks Docker Engine availability.
+func (c *Client) Ping(ctx context.Context) error {
+	if c == nil || c.cli == nil {
+		return fmt.Errorf("docker client is nil")
+	}
+	_, err := c.cli.Ping(ctx)
+	return err
+}
+
+// Info returns brief engine info for diagnostics.
+func (c *Client) Info(ctx context.Context) (string, error) {
+	info, err := c.cli.Info(ctx)
+	if err != nil {
+		return "", err
+	}
+	swarmState := string(info.Swarm.LocalNodeState)
+	if swarmState == "" {
+		swarmState = "inactive"
+	}
+	return fmt.Sprintf("name=%s swarm=%s", info.Name, swarmState), nil
+}
+
+// ListServices returns all swarm services.
 func (c *Client) ListServices(ctx context.Context) ([]ServiceView, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	out := make([]ServiceView, len(c.services))
-	copy(out, c.services)
+	if c == nil || c.cli == nil {
+		return nil, fmt.Errorf("docker client is nil")
+	}
+	services, err := c.cli.ServiceList(ctx, types.ServiceListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("ServiceList: %w", err)
+	}
+	out := make([]ServiceView, 0, len(services))
+	for _, svc := range services {
+		out = append(out, toServiceView(svc))
+	}
 	return out, nil
 }
 
-// RemoveService removes a service by id or name.
+// RemoveService removes a service by ID or name.
+// Missing services are treated as success.
 func (c *Client) RemoveService(ctx context.Context, idOrName string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	next := c.services[:0]
-	for _, svc := range c.services {
-		if svc.ID == idOrName || svc.Name == idOrName {
-			continue
-		}
-		next = append(next, svc)
+	if c == nil || c.cli == nil {
+		return fmt.Errorf("docker client is nil")
 	}
-	c.services = next
-	return nil
+	err := c.cli.ServiceRemove(ctx, idOrName)
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "not found") || strings.Contains(msg, "no such service") {
+		return nil
+	}
+	return fmt.Errorf("ServiceRemove %s: %w", idOrName, err)
+}
+
+func toServiceView(svc swarm.Service) ServiceView {
+	view := ServiceView{
+		ID:   svc.ID,
+		Name: svc.Spec.Name,
+	}
+	if svc.Spec.Labels != nil {
+		view.StackLabel = svc.Spec.Labels["com.docker.stack.namespace"]
+	}
+
+	// Prefer runtime published ports, fallback to endpoint spec.
+	ports := svc.Endpoint.Ports
+	if len(ports) == 0 && svc.Spec.EndpointSpec != nil {
+		ports = svc.Spec.EndpointSpec.Ports
+	}
+	for _, p := range ports {
+		proto := strings.ToLower(string(p.Protocol))
+		if proto == "" {
+			proto = "tcp"
+		}
+		view.PublishedPorts = append(view.PublishedPorts, PublishedPort{
+			PublishedPort: p.PublishedPort,
+			TargetPort:    p.TargetPort,
+			Protocol:      proto,
+		})
+	}
+	return view
 }

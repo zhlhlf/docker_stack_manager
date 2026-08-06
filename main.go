@@ -17,6 +17,7 @@ import (
 	"docker_stack_manager/internal/scheduler"
 )
 
+// Version is injected by CI: -ldflags "-X main.Version=<8-char-commit>"
 var Version = "dev"
 
 func main() {
@@ -30,15 +31,20 @@ func main() {
 
 	dockerClient, err := dockerx.New()
 	if err != nil {
-		log.Fatalf("init docker client: %v", err)
+		log.Fatalf("init docker client: %v (set DOCKER_HOST or mount /var/run/docker.sock)", err)
 	}
 	defer dockerClient.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	if err := dockerClient.Ping(ctx); err != nil {
 		log.Printf("warning: docker ping failed: %v", err)
+		log.Printf("service APIs will error until Docker Engine is reachable")
 	} else {
-		log.Println("docker engine connected (mock mode)")
+		if info, err := dockerClient.Info(ctx); err == nil {
+			log.Printf("docker engine connected: %s", info)
+		} else {
+			log.Printf("docker engine connected")
+		}
 	}
 	cancel()
 
@@ -55,7 +61,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Docker Stack Manager %s listening on http://localhost%s", Version, cfg.ListenAddr)
+		log.Printf("Docker Stack Manager %s listening on http://0.0.0.0%s", Version, cfg.ListenAddr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("http server: %v", err)
 		}

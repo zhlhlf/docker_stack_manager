@@ -1,0 +1,16 @@
+services:
+  stack-manager:
+    build: .
+    image: docker_stack_manager:local
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - stack_manager_data:/data
+    environment:
+      LISTEN_ADDR: ":8080"
+      DB_PATH: "/data/data.json"
+    restart: unless-stopped
+
+volumes:
+  stack_manager_data:
