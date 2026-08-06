@@ -48,6 +48,17 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;");
 }
 
+function sortByStack(list) {
+  return [...(list || [])].sort((a, b) => {
+    const sa = a.stack || "";
+    const sb = b.stack || "";
+    if (!sa && sb) return 1;
+    if (sa && !sb) return -1;
+    if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
+    return (a.name || "").localeCompare(b.name || "", "zh-CN");
+  });
+}
+
 function emptyRow(cols, text) {
   return `<tr class="empty-row"><td colspan="${cols}">${escapeHtml(text)}</td></tr>`;
 }
@@ -345,9 +356,9 @@ async function refreshAll() {
   ]);
 
   state.stacks = stacksRes.data || [];
-  state.services = servicesRes.data || [];
-  state.violations = violationsRes.data || [];
-  state.settings = settingsRes.data || [];
+  state.services = sortByStack(servicesRes.data || []);
+  state.violations = sortByStack(violationsRes.data || []);
+  state.settings = settingsRes.data || {};
   state.logs = logsRes.data || [];
 
   renderStats(statsRes.data || {});
