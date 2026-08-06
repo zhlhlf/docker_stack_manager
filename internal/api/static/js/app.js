@@ -8,9 +8,9 @@ const state = {
 };
 
 const pageMeta = {
-  dashboard: { title: "浠〃鏉?, subtitle: "鐩戞帶 Stack 鏈嶅姟涓庣鍙ｅ悎瑙勭姸鎬? },
-  violations: { title: "杩濊鍒楄〃", subtitle: "鏌ョ湅骞舵竻鐞嗕笉鍚堣 Swarm 鏈嶅姟" },
-  settings: { title: "绯荤粺璁剧疆", subtitle: "閰嶇疆鑷姩娓呯悊绛栫暐涓庢娴嬮棿闅? },
+  dashboard: { title: "娴狀亣銆冮弶?, subtitle: "閻╂垶甯?Stack 閺堝秴濮熸稉搴ｎ伂閸欙絽鎮庣憴鍕Ц閹? },
+  violations: { title: "鏉╂繆顫夐崚妤勩€?, subtitle: "閺屻儳婀呴獮鑸电閻炲棔绗夐崥鍫ｎ潐 Swarm 閺堝秴濮? },
+  settings: { title: "缁崵绮虹拋鍓х枂", subtitle: "闁板秶鐤嗛懛顏勫З濞撳懐鎮婄粵鏍殣娑撳孩顥呭ù瀣？闂? },
 };
 
 async function api(path, options = {}) {
@@ -35,8 +35,8 @@ function toast(message, type = "ok") {
 }
 
 function reasonText(reason) {
-  if (reason === "no_stack") return "鏃?Stack 褰掑睘";
-  if (reason === "port_not_allowed") return "绔彛涓嶅湪鐧藉悕鍗?;
+  if (reason === "no_stack") return "閺?Stack 瑜版帒鐫?;
+  if (reason === "port_not_allowed") return "缁旑垰褰涙稉宥呮躬閻ц棄鎮曢崡?;
   return reason || "-";
 }
 
@@ -87,12 +87,12 @@ function closeModal() {
 
 function renderStats(stats = {}) {
   const cards = [
-    { label: "Stack 鏁伴噺", value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
-    { label: "鏈嶅姟鏁伴噺", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
-    { label: "杩濊鏈嶅姟", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
+    { label: "Stack 閺佷即鍣?, value: stats.stack_count ?? 0, color: "#2563eb", icon: "fa-layer-group", tone: "blue" },
+    { label: "閺堝秴濮熼弫浼村櫤", value: stats.service_count ?? 0, color: "#0f766e", icon: "fa-server", tone: "teal" },
+    { label: "鏉╂繆顫夐張宥呭", value: stats.violation_count ?? 0, color: "#be123c", icon: "fa-shield-halved", tone: "red" },
     {
-      label: "鑷姩娓呯悊",
-      value: stats.auto_clean_enabled ? "寮€鍚? : "鍏抽棴",
+      label: "閼奉亜濮╁〒鍛倞",
+      value: stats.auto_clean_enabled ? "瀵偓閸? : "閸忔娊妫?,
       color: "#7c3aed",
       icon: "fa-robot",
       tone: "purple",
@@ -114,21 +114,21 @@ function renderStats(stats = {}) {
 function renderStacks() {
   const body = document.getElementById("stacks-body");
   if (!state.stacks.length) {
-    body.innerHTML = emptyRow(4, "鏆傛棤 Stack锛岀偣鍑诲彸涓婅鏂板");
+    body.innerHTML = emptyRow(4, "閺嗗倹妫?Stack閿涘瞼鍋ｉ崙璇插礁娑撳﹨顫楅弬鏉款杻");
     return;
   }
   body.innerHTML = state.stacks
     .map((s) => {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
-        .join(" ") || `<span class="chip-empty">鏃犵鍙ｏ紙涓嶅厑璁稿紑鏀撅級</span>`;
+        .join(" ") || `<span class="chip-empty">閺冪姷顏崣锝忕礄娑撳秴鍘戠拋绋跨磻閺€鎾呯礆</span>`;
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.description || "-")}</td>
         <td>${ports}</td>
         <td class="actions">
-          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 缂栬緫</button>
-          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 鍒犻櫎</button>
+          <button class="btn btn-soft btn-sm" data-edit-stack="${s.id}"><i class="fa-solid fa-pen"></i> 缂傛牞绶?/button>
+          <button class="btn btn-danger btn-sm" data-del-stack="${s.id}"><i class="fa-solid fa-trash"></i> 閸掔娀娅?/button>
         </td>
       </tr>`;
     })
@@ -138,7 +138,7 @@ function renderStacks() {
 function renderServices() {
   const body = document.getElementById("services-body");
   if (!state.services.length) {
-    body.innerHTML = emptyRow(4, "鏆傛棤鏈嶅姟鎴?Docker 涓嶅彲鐢?);
+    body.innerHTML = emptyRow(4, "閺嗗倹妫ら張宥呭閹?Docker 娑撳秴褰查悽?);
     return;
   }
   body.innerHTML = state.services
@@ -146,11 +146,11 @@ function renderServices() {
       const ok = !s.violation?.is_violation;
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       const status = ok
-        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 鍚堟硶</span>`
+        ? `<span class="badge badge-ok"><i class="fa-solid fa-check"></i> 閸氬牊纭?/span>`
         : `<span class="badge badge-bad"><i class="fa-solid fa-xmark"></i> ${escapeHtml(reasonText(s.violation.reason))}</span>`;
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "鏈綊灞?)}</td>
+        <td>${escapeHtml(s.stack || "閺堫亜缍婄仦?)}</td>
         <td>${ports}</td>
         <td>${status}</td>
       </tr>`;
@@ -168,7 +168,7 @@ function renderViolations() {
   });
   const body = document.getElementById("violations-body");
   if (!list.length) {
-    body.innerHTML = emptyRow(4, "褰撳墠鏃犺繚瑙勬湇鍔?);
+    body.innerHTML = emptyRow(4, "瑜版挸澧犻弮鐘虹箽鐟欏嫭婀囬崝?);
     return;
   }
   body.innerHTML = list
@@ -176,7 +176,7 @@ function renderViolations() {
       const ports = (s.published_ports || []).map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join(" ") || "-";
       return `<tr>
         <td class="name-cell">${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.stack || "鏈綊灞?)}</td>
+        <td>${escapeHtml(s.stack || "閺堫亜缍婄仦?)}</td>
         <td><span class="badge badge-bad"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(reasonText(s.violation?.reason))}</span></td>
         <td>${ports}</td>
       </tr>`;
@@ -187,7 +187,7 @@ function renderViolations() {
 function renderLogs() {
   const body = document.getElementById("logs-body");
   if (!state.logs.length) {
-    body.innerHTML = emptyRow(5, "鏆傛棤鏃ュ織");
+    body.innerHTML = emptyRow(5, "閺嗗倹妫ら弮銉ョ箶");
     return;
   }
   body.innerHTML = state.logs
@@ -196,7 +196,7 @@ function renderLogs() {
       <td class="name-cell">${escapeHtml(l.service_name)}</td>
       <td>${escapeHtml(l.stack_name || "-")}</td>
       <td>${escapeHtml(reasonText(l.reason))}</td>
-      <td>${l.cleaned ? `<span class="badge badge-ok">宸叉竻鐞?/span>` : `<span class="badge badge-muted">鏈竻鐞?/span>`}</td>
+      <td>${l.cleaned ? `<span class="badge badge-ok">瀹稿弶绔婚悶?/span>` : `<span class="badge badge-muted">閺堫亝绔婚悶?/span>`}</td>
     </tr>`)
     .join("");
 }
@@ -210,30 +210,30 @@ function renderSettings() {
 function openStackModal(stack) {
   state.editingStackId = stack?.id || null;
   const isEdit = !!stack;
-  openModal(isEdit ? `缂栬緫 Stack 路 ${stack.name}` : "鏂板 Stack", `
+  openModal(isEdit ? `缂傛牞绶?Stack 璺?${stack.name}` : "閺傛澘顤?Stack", `
     <form class="stack-form" id="stack-form">
       <label>
-        <div>鍚嶇О ${isEdit ? "(涓嶅彲淇敼)" : ""}</div>
-        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="渚嬪 czt-zhongtoubao" />
+        <div>閸氬秶袨 ${isEdit ? "(娑撳秴褰叉穱顔芥暭)" : ""}</div>
+        <input name="name" ${isEdit ? "readonly" : "required"} value="${escapeHtml(stack?.name || "")}" placeholder="娓氬顩?czt-zhongtoubao" />
       </label>
       <label>
-        <div>鎻忚堪</div>
-        <textarea name="description" rows="2" placeholder="鍙€夋弿杩?>${escapeHtml(stack?.description || "")}</textarea>
+        <div>閹诲繗鍫?/div>
+        <textarea name="description" rows="2" placeholder="閸欘垶鈧寮挎潻?>${escapeHtml(stack?.description || "")}</textarea>
       </label>
       ${isEdit ? `
         <div>
-          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">绔彛鐧藉悕鍗?/div>
+          <div style="margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:600">缁旑垰褰涢惂钘夋倳閸?/div>
           <div class="port-row">
-            <input id="new-port" placeholder="8080 鎴?8080-8090" />
+            <input id="new-port" placeholder="8080 閹?8080-8090" />
             <select id="new-proto"><option value="tcp">tcp</option><option value="udp">udp</option></select>
-            <button type="button" class="btn btn-primary" id="btn-add-port">娣诲姞</button>
+            <button type="button" class="btn btn-primary" id="btn-add-port">濞ｈ濮?/button>
           </div>
           <div class="port-list" id="port-list"></div>
         </div>
-      ` : `<div class="muted">鍒涘缓鍚庡彲鍦ㄧ紪杈戜腑閰嶇疆绔彛鐧藉悕鍗曘€傜┖鐧藉悕鍗曡〃绀轰笉鍏佽浠讳綍鍙戝竷绔彛銆?/div>`}
+      ` : `<div class="muted">閸掓稑缂撻崥搴″讲閸︺劎绱潏鎴滆厬闁板秶鐤嗙粩顖氬經閻ц棄鎮曢崡鏇樷偓鍌溾敄閻ц棄鎮曢崡鏇°€冪粈杞扮瑝閸忎浇顔忔禒璁崇秿閸欐垵绔风粩顖氬經閵?/div>`}
       <div class="actions">
-        <button type="submit" class="btn btn-primary">${isEdit ? "淇濆瓨鎻忚堪" : "鍒涘缓"}</button>
-        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">鍙栨秷</button>
+        <button type="submit" class="btn btn-primary">${isEdit ? "娣囨繂鐡ㄩ幓蹇氬牚" : "閸掓稑缂?}</button>
+        <button type="button" class="btn btn-ghost" id="btn-cancel-modal">閸欐牗绉?/button>
       </div>
     </form>
   `);
@@ -249,7 +249,7 @@ function openStackModal(stack) {
           method: "PUT",
           body: JSON.stringify({ description: fd.get("description") || "" }),
         });
-        toast("Stack 宸叉洿鏂?);
+        toast("Stack 瀹稿弶娲块弬?);
       } else {
         await api("/api/stacks", {
           method: "POST",
@@ -258,7 +258,7 @@ function openStackModal(stack) {
             description: fd.get("description") || "",
           }),
         });
-        toast("Stack 宸插垱寤?);
+        toast("Stack 瀹告彃鍨卞?);
         closeModal();
       }
       await refreshAll();
@@ -276,13 +276,13 @@ function openStackModal(stack) {
     addPortBtn.onclick = async () => {
       const port = document.getElementById("new-port").value.trim();
       const protocol = document.getElementById("new-proto").value;
-      if (!port) return toast("璇疯緭鍏ョ鍙?, "err");
+      if (!port) return toast("鐠囩柉绶崗銉ь伂閸?, "err");
       try {
         await api(`/api/stacks/${stack.id}/ports`, {
           method: "POST",
           body: JSON.stringify({ port, protocol }),
         });
-        toast("绔彛宸叉坊鍔?);
+        toast("缁旑垰褰涘鍙夊潑閸?);
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -298,14 +298,14 @@ function renderPortList(stack) {
   if (!box) return;
   const ports = stack.ports || [];
   if (!ports.length) {
-    box.innerHTML = `<div class="muted">鏆傛棤绔彛</div>`;
+    box.innerHTML = `<div class="muted">閺嗗倹妫ょ粩顖氬經</div>`;
     return;
   }
   box.innerHTML = ports
     .map(
       (p) => `<div class="port-item">
         <span class="chip">${escapeHtml(p.port)} / ${escapeHtml(p.protocol || "tcp")}</span>
-        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">鍒犻櫎</button>
+        <button class="btn btn-danger btn-sm" data-del-port="${p.id}">閸掔娀娅?/button>
       </div>`
     )
     .join("");
@@ -313,7 +313,7 @@ function renderPortList(stack) {
     btn.onclick = async () => {
       try {
         await api(`/api/stacks/${stack.id}/ports/${btn.dataset.delPort}`, { method: "DELETE" });
-        toast("绔彛宸插垹闄?);
+        toast("缁旑垰褰涘鎻掑灩闂?);
         await refreshAll();
         const latest = state.stacks.find((s) => s.id === stack.id);
         if (latest) openStackModal(latest);
@@ -359,22 +359,28 @@ function bindEvents() {
   document.getElementById("btn-refresh").onclick = async () => {
     try {
       await refreshAll();
-      toast("宸插埛鏂?);
+      toast("瀹告彃鍩涢弬?);
     } catch (err) {
       toast(err.message, "err");
     }
   };
   document.getElementById("btn-clean").onclick = async () => {
-    if (!confirm("纭娓呯悊鎵€鏈夊綋鍓嶈繚瑙勬湇鍔★紵姝ゆ搷浣滀細鍒犻櫎 Docker Service銆?)) return;
+    if (!confirm("绾喛顓诲〒鍛倞閹碘偓閺堝缍嬮崜宥堢箽鐟欏嫭婀囬崝鈽呯吹濮濄倖鎼锋担婊€绱伴崚鐘绘珟 Docker Service閵?)) return;
     try {
       const res = await api("/api/clean", { method: "POST" });
-      toast(`娓呯悊瀹屾垚锛屽垹闄?${res.data?.removed ?? 0} 涓湇鍔);
+      toast(`濞撳懐鎮婄€瑰本鍨氶敍灞藉灩闂?${res.data?.removed ?? 0} 娑擃亝婀囬崝顡?;
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");
     }
   };
   document.getElementById("btn-add-stack").onclick = () => openStackModal(null);
+  const okToggle = document.getElementById("toggle-ok-services");
+  if (okToggle) {
+    okToggle.onclick = () => toggleOkServices();
+    // default collapsed
+    toggleOkServices(false);
+  }
   document.getElementById("modal-close").onclick = closeModal;
   document.getElementById("modal").addEventListener("click", (e) => {
     if (e.target.id === "modal") closeModal();
@@ -387,10 +393,10 @@ function bindEvents() {
       if (stack) openStackModal(stack);
     }
     if (delBtn) {
-      if (!confirm("纭鍒犻櫎璇?Stack锛?)) return;
+      if (!confirm("绾喛顓婚崚鐘绘珟鐠?Stack閿?)) return;
       try {
         await api(`/api/stacks/${delBtn.dataset.delStack}`, { method: "DELETE" });
-        toast("宸插垹闄?);
+        toast("瀹告彃鍨归梽?);
         await refreshAll();
       } catch (err) {
         toast(err.message, "err");
@@ -407,7 +413,7 @@ function bindEvents() {
     };
     try {
       await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) });
-      toast("璁剧疆宸蹭繚瀛?);
+      toast("鐠佸墽鐤嗗韫箽鐎?);
       await refreshAll();
     } catch (err) {
       toast(err.message, "err");

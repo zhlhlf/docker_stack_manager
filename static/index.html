@@ -19,30 +19,30 @@
       </div>
       <nav class="menu">
         <button class="menu-item active" data-page="dashboard">
-          <i class="fa-solid fa-gauge-high"></i><span>仪表板</span>
+          <i class="fa-solid fa-gauge-high"></i><span>浠〃鏉?/span>
         </button>
         <button class="menu-item" data-page="violations">
-          <i class="fa-solid fa-shield-halved"></i><span>违规列表</span>
+          <i class="fa-solid fa-shield-halved"></i><span>杩濊鍒楄〃</span>
         </button>
         <button class="menu-item" data-page="settings">
-          <i class="fa-solid fa-sliders"></i><span>系统设置</span>
+          <i class="fa-solid fa-sliders"></i><span>绯荤粺璁剧疆</span>
         </button>
       </nav>
       <div class="sidebar-footer">
         <div class="footer-pill"><i class="fa-solid fa-circle-nodes"></i> x-ui style</div>
-        <div class="footer-ver">Go · embed · single binary</div>
+        <div class="footer-ver">Go 路 embed 路 single binary</div>
       </div>
     </aside>
 
     <main class="content">
       <header class="topbar">
         <div class="topbar-left">
-          <h1 id="page-title">仪表板</h1>
-          <p class="subtitle" id="page-subtitle">监控 Stack 服务与端口合规状态</p>
+          <h1 id="page-title">浠〃鏉?/h1>
+          <p class="subtitle" id="page-subtitle">鐩戞帶 Stack 鏈嶅姟涓庣鍙ｅ悎瑙勭姸鎬?/p>
         </div>
         <div class="top-actions">
-          <button id="btn-refresh" class="btn btn-soft"><i class="fa-solid fa-rotate"></i> 刷新</button>
-          <button id="btn-clean" class="btn btn-danger"><i class="fa-solid fa-broom"></i> 一键清理</button>
+          <button id="btn-refresh" class="btn btn-soft"><i class="fa-solid fa-rotate"></i> 鍒锋柊</button>
+          <button id="btn-clean" class="btn btn-danger"><i class="fa-solid fa-broom"></i> 涓€閿竻鐞?/button>
         </div>
       </header>
 
@@ -54,20 +54,20 @@
             <div class="card-title">
               <i class="fa-solid fa-layer-group"></i>
               <div>
-                <h2>Stack 列表</h2>
-                <p>管理 Stack 与端口白名单</p>
+                <h2>Stack 鍒楄〃</h2>
+                <p>绠＄悊 Stack 涓庣鍙ｇ櫧鍚嶅崟</p>
               </div>
             </div>
-            <button id="btn-add-stack" class="btn btn-primary"><i class="fa-solid fa-plus"></i> 新增 Stack</button>
+            <button id="btn-add-stack" class="btn btn-primary"><i class="fa-solid fa-plus"></i> 鏂板 Stack</button>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>名称</th>
-                  <th>描述</th>
-                  <th>端口白名单</th>
-                  <th style="width:180px">操作</th>
+                  <th>鍚嶇О</th>
+                  <th>鎻忚堪</th>
+                  <th>绔彛鐧藉悕鍗?/th>
+                  <th style="width:180px">鎿嶄綔</th>
                 </tr>
               </thead>
               <tbody id="stacks-body"></tbody>
@@ -80,8 +80,8 @@
             <div class="card-title">
               <i class="fa-solid fa-server"></i>
               <div>
-                <h2>服务状态</h2>
-                <p>实时 Docker Swarm Service</p>
+                <h2>鏈嶅姟鐘舵€?/h2>
+                <p>瀹炴椂 Docker Swarm Service</p>
               </div>
             </div>
           </div>
@@ -89,10 +89,10 @@
             <table>
               <thead>
                 <tr>
-                  <th>服务名</th>
-                  <th>归属 Stack</th>
-                  <th>发布端口</th>
-                  <th style="width:140px">状态</th>
+                  <th>鏈嶅姟鍚?/th>
+                  <th>褰掑睘 Stack</th>
+                  <th>鍙戝竷绔彛</th>
+                  <th style="width:140px">鐘舵€?/th>
                 </tr>
               </thead>
               <tbody id="services-body"></tbody>
@@ -107,27 +107,27 @@
             <div class="card-title">
               <i class="fa-solid fa-triangle-exclamation"></i>
               <div>
-                <h2>当前违规服务</h2>
-                <p>无归属或端口不在白名单</p>
+                <h2>褰撳墠杩濊鏈嶅姟</h2>
+                <p>鏃犲綊灞炴垨绔彛涓嶅湪鐧藉悕鍗?/p>
               </div>
             </div>
             <div class="filters">
               <select id="filter-reason" class="input">
-                <option value="">全部原因</option>
-                <option value="no_stack">无 Stack</option>
-                <option value="port_not_allowed">端口不允许</option>
+                <option value="">鍏ㄩ儴鍘熷洜</option>
+                <option value="no_stack">鏃?Stack</option>
+                <option value="port_not_allowed">绔彛涓嶅厑璁?/option>
               </select>
-              <input id="filter-stack" class="input" type="text" placeholder="按 Stack 筛选" />
+              <input id="filter-stack" class="input" type="text" placeholder="鎸?Stack 绛涢€? />
             </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>服务名</th>
-                  <th>归属 Stack</th>
-                  <th>违规原因</th>
-                  <th>发布端口</th>
+                  <th>鏈嶅姟鍚?/th>
+                  <th>褰掑睘 Stack</th>
+                  <th>杩濊鍘熷洜</th>
+                  <th>鍙戝竷绔彛</th>
                 </tr>
               </thead>
               <tbody id="violations-body"></tbody>
@@ -140,8 +140,8 @@
             <div class="card-title">
               <i class="fa-solid fa-clock-rotate-left"></i>
               <div>
-                <h2>违规日志</h2>
-                <p>检测与清理审计记录</p>
+                <h2>杩濊鏃ュ織</h2>
+                <p>妫€娴嬩笌娓呯悊瀹¤璁板綍</p>
               </div>
             </div>
           </div>
@@ -149,11 +149,11 @@
             <table>
               <thead>
                 <tr>
-                  <th>时间</th>
-                  <th>服务名</th>
+                  <th>鏃堕棿</th>
+                  <th>鏈嶅姟鍚?/th>
                   <th>Stack</th>
-                  <th>原因</th>
-                  <th>已清理</th>
+                  <th>鍘熷洜</th>
+                  <th>宸叉竻鐞?/th>
                 </tr>
               </thead>
               <tbody id="logs-body"></tbody>
@@ -168,16 +168,16 @@
             <div class="card-title">
               <i class="fa-solid fa-gear"></i>
               <div>
-                <h2>清理策略</h2>
-                <p>定时检测与自动清理</p>
+                <h2>娓呯悊绛栫暐</h2>
+                <p>瀹氭椂妫€娴嬩笌鑷姩娓呯悊</p>
               </div>
             </div>
           </div>
           <form id="settings-form" class="form">
             <div class="setting-item">
               <div>
-                <div class="setting-label">自动清理</div>
-                <div class="setting-desc">发现违规服务后自动删除</div>
+                <div class="setting-label">鑷姩娓呯悊</div>
+                <div class="setting-desc">鍙戠幇杩濊鏈嶅姟鍚庤嚜鍔ㄥ垹闄?/div>
               </div>
               <label class="switch">
                 <input type="checkbox" id="auto_clean_enabled" />
@@ -185,15 +185,15 @@
               </label>
             </div>
             <div class="setting-item col">
-              <div class="setting-label">检测间隔（秒）</div>
-              <div class="setting-desc">最小 10 秒，修改后立即重载定时器</div>
+              <div class="setting-label">妫€娴嬮棿闅旓紙绉掞級</div>
+              <div class="setting-desc">鏈€灏?10 绉掞紝淇敼鍚庣珛鍗抽噸杞藉畾鏃跺櫒</div>
               <input type="number" id="clean_interval" class="input" min="10" step="1" />
             </div>
             <div class="setting-item col">
-              <div class="setting-label">上次清理时间</div>
+              <div class="setting-label">涓婃娓呯悊鏃堕棿</div>
               <input type="text" id="last_clean_time" class="input" readonly />
             </div>
-            <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> 保存设置</button>
+            <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> 淇濆瓨璁剧疆</button>
           </form>
         </div>
       </section>
