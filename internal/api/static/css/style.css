@@ -135,22 +135,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   min-width: 0;
   width: 100%;
   max-width: 1560px;
-  padding: 28px 34px 46px;
+  padding: 24px 28px 36px;
 }
 .topbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 22px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 .topbar h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.2;
   letter-spacing: -.5px;
 }
-.subtitle { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+.subtitle { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
 .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .page { display: none; animation: fade .22s ease; }
@@ -163,13 +163,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 .stat-card {
   position: relative;
   overflow: hidden;
-  padding: 20px;
+  padding: 15px 16px 14px;
   background: rgba(255, 255, 255, .88);
   border: 1px solid rgba(255, 255, 255, .85);
   border-radius: var(--radius-xl);
@@ -194,10 +194,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .stat-card .stat-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .stat-card .label { color: var(--muted); font-size: 13px; font-weight: 650; }
-.stat-card .value { margin-top: 12px; font-size: 32px; line-height: 1.05; font-weight: 780; letter-spacing: -.8px; }
+.stat-card .value { margin-top: 8px; font-size: 28px; line-height: 1.05; font-weight: 780; letter-spacing: -.6px; }
 .stat-icon {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 16px;
@@ -211,10 +211,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .card {
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   background: rgba(255, 255, 255, .90);
   border: 1px solid rgba(255, 255, 255, .82);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(12px);
 }
@@ -222,34 +222,35 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px 20px;
+  gap: 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, #ffffff, #f8fafd);
 }
-.card-title { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.card-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .card-title > i {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 15px;
+  border-radius: 12px;
   color: var(--primary-2);
   background: var(--primary-soft);
   box-shadow: inset 0 0 0 1px rgba(108, 123, 255, .12);
 }
-.card-title h2 { margin: 0; font-size: 17px; letter-spacing: -.2px; }
-.card-title p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.card-title h2 { margin: 0; font-size: 15px; letter-spacing: -.2px; }
+.card-title p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
 
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 th, td {
-  padding: 14px 18px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 th {
   position: sticky;
@@ -271,7 +272,7 @@ tbody tr:last-child td { border-bottom: 0; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 8px 13px;
   border: 1px solid transparent;
   border-radius: 999px;
   font-weight: 650;
@@ -321,7 +322,7 @@ tbody tr:last-child td { border-bottom: 0; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -353,8 +354,8 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .filters { display: flex; gap: 8px; flex-wrap: wrap; }
-.card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.stack-search-input { width: 220px; }
+.card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stack-search-input { width: 170px; }
 .input,
 .form input,
 .stack-form input,
@@ -362,7 +363,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .port-row input,
 .port-row select {
   width: 100%;
-  padding: 10px 13px;
+  padding: 8px 11px;
   border: 1px solid #dce2ee;
   border-radius: 999px;
   color: var(--text);
@@ -386,14 +387,14 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .input[readonly] { color: var(--muted); background: #f7f9fc; }
 
-.form { display: grid; gap: 14px; padding: 20px; }
+.form { display: grid; gap: 10px; padding: 14px; }
 .settings-card { max-width: 620px; }
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 15px;
+  gap: 12px;
+  padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--card-soft);
@@ -495,7 +496,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .port-row { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; }
 .name-cell { font-weight: 700; }
-.empty-row td { padding: 30px 18px; color: var(--muted); text-align: center; }
+.empty-row td { padding: 22px 14px; color: var(--muted); text-align: center; }
 
 .service-group { border-top: 1px solid var(--line); }
 .group-head {
@@ -504,7 +505,7 @@ tbody tr:last-child td { border-bottom: 0; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 18px;
+  padding: 9px 14px;
   border: 0;
   text-align: left;
   background: #f9fbfe;
