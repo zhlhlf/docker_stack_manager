@@ -163,11 +163,19 @@ function countServicesForStack(stackName) {
 
 function renderStacks() {
   const body = document.getElementById("stacks-body");
+  const keyword = document.getElementById("filter-configured-stack")?.value.trim().toLowerCase() || "";
   if (!state.stacks.length) {
     body.innerHTML = emptyRow(5, "暂无 Stack，请先新增");
     return;
   }
-  body.innerHTML = state.stacks
+  const stacks = keyword
+    ? state.stacks.filter((s) => `${s.name || ""} ${s.description || ""}`.toLowerCase().includes(keyword))
+    : state.stacks;
+  if (!stacks.length) {
+    body.innerHTML = emptyRow(5, "没有匹配的 Stack");
+    return;
+  }
+  body.innerHTML = stacks
     .map((s) => {
       const ports = (s.ports || [])
         .map((p) => `<span class="chip">${escapeHtml(p.port)}/${escapeHtml(p.protocol || "tcp")}</span>`)
@@ -484,6 +492,7 @@ function bindEvents() {
     }
   };
   document.getElementById("btn-add-stack").onclick = () => openStackModal(null);
+  document.getElementById("filter-configured-stack").oninput = renderStacks;
   const okToggle = document.getElementById("toggle-ok-services");
   if (okToggle) {
     okToggle.onclick = () => toggleOkServices();

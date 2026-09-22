@@ -52,7 +52,10 @@
                 <p>管理 Stack 与端口白名单</p>
               </div>
             </div>
-            <button id="btn-add-stack" class="btn btn-primary"><i class="fa-solid fa-plus"></i> 新增 Stack</button>
+            <div class="card-actions">
+              <input id="filter-configured-stack" class="input stack-search-input" type="search" placeholder="搜索名称或描述" aria-label="搜索已配置 Stack" />
+              <button id="btn-add-stack" class="btn btn-primary"><i class="fa-solid fa-plus"></i> 新增 Stack</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
